@@ -48,13 +48,13 @@ public class EdhRecDeckScraper {
                                 deckRepository.saveAndFlush(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash)); // TODO use cardhash meaningfully
                                 Utils.sleep(200);
                             } else {
-                                log.error("EDHRec API deck request (commander: {}, deck: {}) returned an error: [{}] - {}", commander.name(), urlHash, commanderPageResponse.getStatusCodeValue(), commanderPageResponse.getStatusCode().getReasonPhrase());
+                                log.error("EDHRec API deck request (commander: {}, deck: {}) returned an error.", commander.name(), urlHash);
                             }
                         }
                 );
                 log.info("Done with all decks for {}!!!", commander.name());
             } else {
-                log.error("EDHRec API commander request ({}) returned an error: [{}] - {}", commander.name(), commanderPageResponse.getStatusCodeValue(), commanderPageResponse.getStatusCode().getReasonPhrase());
+                log.error("EDHRec API commander request ({}) returned an error.", commander.name());
             }
         }
     }
