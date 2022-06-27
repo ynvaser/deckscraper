@@ -16,16 +16,23 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class DeckSaverService {
+    private static final Set<Card> BASIC_LANDS = Set.of(
+            new Card("Plains"),
+            new Card("Island"),
+            new Card("Mountain"),
+            new Card("Swamp"),
+            new Card("Forest"));
     @Autowired
     private DeckRepository deckRepository;
 
     @Transactional
     public void saveDecks(File jarLocation, Path outputFolderPath, Set<Card> collection, String[] args){
-        deckRepository.findAllBy().map(DeckEntity::toDeck).filter(deck -> isAboveThreshold(deck, collection, Integer.parseInt(args[1]))).forEach(deck -> {
+        deckRepository.findAllBy().map(DeckEntity::toDeck).filter(deck -> isAboveThreshold(deck, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]))).forEach(deck -> {
             String commanderFolderName = Utils.cardNameToJsonFileName(deck.getCommander().name());
             Utils.createFolderIfNeeded(jarLocation, "\\output\\" + commanderFolderName);
             String outputFileName = outputFolderPath + "\\" + commanderFolderName + "\\" + deck.getPercentage() + "_" + deck.hashCode() + ".txt";
@@ -37,8 +44,8 @@ public class DeckSaverService {
         });
     }
 
-    private boolean isAboveThreshold(Deck deck, Set<Card> collection, Integer percentage) {
-        Set<Card> cards = deck.getCards();
+    private boolean isAboveThreshold(Deck deck, Set<Card> collection, Integer percentage, Integer maxLands) {
+        Set<Card> cards = deck.getCards().stream().filter(card -> !BASIC_LANDS.contains(card)).collect(Collectors.toSet());
         int points = 100 - cards.size(); //Max is 99, you already have the commander.
         for (Card card : cards) {
             if (collection.contains(card)) {
@@ -46,6 +53,6 @@ public class DeckSaverService {
             }
         }
         deck.setPercentage(points); // Dirty (no command/query separation), but simple
-        return points >= percentage;
+        return cards.size() >= 100-maxLands && points >= percentage;
     }
 }
