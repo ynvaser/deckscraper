@@ -60,8 +60,17 @@ tasks.register('ensureDirectory') {
 	}
 }
 
+tasks.register('packageDistribution', Zip) {
+	archiveFileName = "ynvasers_deckscraper.zip"
+	destinationDirectory = layout.buildDirectory.dir('dist')
+
+	from layout.buildDirectory.dir("libs")
+}
+
+
 
 assemble.finalizedBy(ensureDirectory)
-assemble.finalizedBy(moveDb)
-assemble.finalizedBy(moveStartScript)
-assemble.finalizedBy(moveBashStartScript)
+ensureDirectory.finalizedBy(moveDb)
+moveDb.finalizedBy(moveStartScript)
+moveStartScript.finalizedBy(moveBashStartScript)
+moveBashStartScript.finalizedBy(packageDistribution)
