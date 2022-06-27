@@ -1,5 +1,8 @@
 # ynvaser's EDH Deckscraper
 
+##What does this do?
+* This tool takes your collection of cards, and the cards you own that you can use as a commander, and gives you a list of decks from EDHREC that you can build or are close to building.
+
 ##Required software
 * Java 17 installed
 
