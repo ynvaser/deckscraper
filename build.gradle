@@ -48,6 +48,11 @@ task moveStartScript(type: Copy) {
 	into 'build/libs/'
 }
 
+task moveBashStartScript(type: Copy) {
+	from 'scripts/start.sh'
+	into 'build/libs/'
+}
+
 tasks.register('ensureDirectory') {
 	doLast {
 		mkdir "build/libs/input"
@@ -59,3 +64,4 @@ tasks.register('ensureDirectory') {
 assemble.finalizedBy(ensureDirectory)
 assemble.finalizedBy(moveDb)
 assemble.finalizedBy(moveStartScript)
+assemble.finalizedBy(moveBashStartScript)

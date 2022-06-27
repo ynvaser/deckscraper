@@ -16,11 +16,9 @@ import systems.bdev.deckscraper.util.Utils;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Component
@@ -34,59 +32,70 @@ public class EdhRecDeckScraper {
     @Autowired
     private DeckRepository deckRepository;
 
-    public Map<Card, Set<Deck>> getCommandersToDecks(Set<Card> commanders, int monthsToLookBack) {
-        Map<Card, Set<Deck>> commandersToDecks = new HashMap<>();
+    public void persistCommandersAndDecks(Set<Card> commanders, int monthsToLookBack) {
         for (Card commander : commanders) {
             log.info("Started scraping for {}", commander.name());
-            ResponseEntity<EdhRecCommanderPage> commanderPageResponse = restTemplate.getForEntity(String.format(COMMANDER_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name())), EdhRecCommanderPage.class);
+            ResponseEntity<EdhRecCommanderPage> commanderPageResponse = getCommanderPageResponse(commander);
             Utils.sleep(200);
             List<DeckEntity> persistedDecks = deckRepository.findAllByCommander(commander.name());
-            addDecksFromDb(commandersToDecks, commander, persistedDecks);
-            if (commanderPageResponse.getStatusCode().is2xxSuccessful()) {
+            if (commanderPageResponse != null) {
                 Set<String> urlHashes = getUrlHashesToProcess(commander, persistedDecks, commanderPageResponse, monthsToLookBack); // TODO update based on timestamp
-                for (String urlHash : urlHashes) {
-                    log.info("Pulling deck {} for commander {}", urlHash, commander.name());
-                    ResponseEntity<EdhRecDeck> deckResponse = restTemplate.getForEntity(String.format(DECK_REQUEST_TEMPLATE, urlHash), EdhRecDeck.class);
-                    if (deckResponse.getStatusCode().is2xxSuccessful()) {
-                        Deck deck = new Deck(commander, deckResponse.getBody().getCards().stream().map(Card::new).collect(Collectors.toSet()));
-                        boolean addResult = commandersToDecks.computeIfAbsent(commander, key -> new HashSet<>()).add(deck);
-                        if (!addResult) {
-                            log.warn("Duplicate deck encountered from API, it will be persisted but won't be returned: {}", urlHash);
+                urlHashes.parallelStream().forEach(urlHash -> {
+                            log.info("Pulling deck {} for commander {}", urlHash, commander.name());
+                            ResponseEntity<EdhRecDeck> deckResponse = getDeck(urlHash);
+                            if (deckResponse != null) {
+                                Deck deck = new Deck(commander, deckResponse.getBody().getCards().stream().map(Card::new).collect(Collectors.toSet()));
+                                deckRepository.saveAndFlush(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash)); // TODO use cardhash meaningfully
+                                Utils.sleep(200);
+                            } else {
+                                log.error("EDHRec API deck request (commander: {}, deck: {}) returned an error: [{}] - {}", commander.name(), urlHash, commanderPageResponse.getStatusCodeValue(), commanderPageResponse.getStatusCode().getReasonPhrase());
+                            }
                         }
-                        deckRepository.saveAndFlush(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash)); // TODO use cardhash meaningfully
-                        Utils.sleep(200);
-                    } else {
-                        log.error("EDHRec API deck request (commander: {}, deck: {}) returned an error: [{}] - {}", commander.name(), urlHash, commanderPageResponse.getStatusCodeValue(), commanderPageResponse.getStatusCode().getReasonPhrase());
-                    }
-                }
+                );
                 log.info("Done with all decks for {}!!!", commander.name());
             } else {
                 log.error("EDHRec API commander request ({}) returned an error: [{}] - {}", commander.name(), commanderPageResponse.getStatusCodeValue(), commanderPageResponse.getStatusCode().getReasonPhrase());
             }
         }
-        return commandersToDecks;
     }
 
-    private void addDecksFromDb(Map<Card, Set<Deck>> commandersToDecks, Card commander, List<DeckEntity> persistedDecks) {
-        for (DeckEntity persistedDeck : persistedDecks) {
-            Deck deckFromDb = persistedDeck.toDeck();
-            boolean addResult = commandersToDecks.computeIfAbsent(commander, key -> new HashSet<>()).add(deckFromDb);
-            if (!addResult) {
-                log.warn("Duplicate deck encountered from DB, it will be persisted but won't be returned: {}", persistedDeck.getId());
+    private ResponseEntity<EdhRecDeck> getDeck(String urlHash) {
+        ResponseEntity<EdhRecDeck> response = null;
+        try {
+            response = restTemplate.getForEntity(String.format(DECK_REQUEST_TEMPLATE, urlHash), EdhRecDeck.class);
+        } catch (Exception e) {
+            log.info("Couldn't fetch deck: {}", urlHash);
+        }
+        return response;
+    }
+
+    private ResponseEntity<EdhRecCommanderPage> getCommanderPageResponse(Card commander) {
+        ResponseEntity<EdhRecCommanderPage> commanderPageResponse = null;
+        try {
+            commanderPageResponse = restTemplate.getForEntity(String.format(COMMANDER_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name())), EdhRecCommanderPage.class);
+        } catch (Exception e) {
+            log.warn("Couldn't find commander by it's regular name: {}", commander.name());
+            Utils.sleep(200);
+            try {
+                commanderPageResponse = restTemplate.getForEntity(String.format(COMMANDER_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name())), EdhRecCommanderPage.class);
+            } catch (Exception f) {
+                log.error("Couldn't find commander by it's name without the part after '//': {}", commander.name());
             }
         }
+        return commanderPageResponse;
     }
 
     private Set<String> getUrlHashesToProcess(Card commander, List<DeckEntity> persistedDecks, ResponseEntity<EdhRecCommanderPage> commanderPageResponse, int monthsToLookBack) {
         LocalDate today = LocalDate.now();
         EdhRecCommanderPage commanderPage = commanderPageResponse.getBody();
-        Set<String> urlHashes = commanderPage
+        Set<String> urlHashes = ConcurrentHashMap.newKeySet();
+        commanderPage
                 .getTable()
                 .stream()
                 .filter(edhRecDeckId -> monthsBetween(edhRecDeckId.getSaveDate(), today) <= monthsToLookBack)
                 .map(EdhRecDeckId::getUrlHash)
-                .collect(Collectors.toSet());
-        log.info("Skipping {}/{} decks for commander {} due to time filtering ({} months)", commanderPage.getTable().size()-urlHashes.size(), commanderPage.getTable().size(), commander.name(), monthsToLookBack);
+                .collect(Collectors.toCollection(() -> urlHashes));
+        log.info("Skipping {}/{} decks for commander {} due to time filtering ({} months)", commanderPage.getTable().size() - urlHashes.size(), commanderPage.getTable().size(), commander.name(), monthsToLookBack);
         Set<String> persistedDeckIds = persistedDecks.stream().map(DeckEntity::getId).collect(Collectors.toSet());
         if (persistedDecks.size() > 0) {
             urlHashes.removeAll(persistedDeckIds);

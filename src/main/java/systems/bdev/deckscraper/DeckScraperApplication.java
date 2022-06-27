@@ -1,26 +1,20 @@
 package systems.bdev.deckscraper;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import systems.bdev.deckscraper.service.DeckScraperService;
+import systems.bdev.deckscraper.util.Utils;
 
 @SpringBootApplication
-public class DeckScraperApplication implements CommandLineRunner {
-	@Autowired
-	private ApplicationContext applicationContext;
-	@Autowired
-    private DeckScraperService deckScraperService;
-
+@Slf4j
+public class DeckScraperApplication {
     public static void main(String[] args) {
-        SpringApplication.run(DeckScraperApplication.class, args);
-    }
-
-    @Override
-    public void run(String... args) throws Exception {
-        deckScraperService.run(args);
-		SpringApplication.exit(applicationContext);
+        ConfigurableApplicationContext applicationContext = SpringApplication.run(DeckScraperApplication.class, args);
+        applicationContext.getBean(DeckScraperService.class).run(args);
+        log.info("Application finished, please check the output folder for results.");
+        Utils.sleep(30000);
+        SpringApplication.exit(applicationContext);
     }
 }
