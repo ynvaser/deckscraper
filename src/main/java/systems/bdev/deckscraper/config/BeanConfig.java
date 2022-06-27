@@ -3,7 +3,8 @@ package systems.bdev.deckscraper.config;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -28,7 +29,12 @@ public class BeanConfig {
 
         SSLConnectionSocketFactory csf = new SSLConnectionSocketFactory(sslContext);
 
-        CloseableHttpClient httpClient = HttpClients.custom()
+        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+        connectionManager.setMaxTotal(2000);
+        connectionManager.setDefaultMaxPerRoute(2000);
+
+        CloseableHttpClient httpClient = HttpClientBuilder.create()
+                .setConnectionManager(connectionManager)
                 .setSSLSocketFactory(csf)
                 .build();
 
