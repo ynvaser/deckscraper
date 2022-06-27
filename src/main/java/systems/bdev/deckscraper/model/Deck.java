@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 public final class Deck {
     private final Card commander;
     private final Set<Card> cards;
+    private String cardHash;
     private Integer percentage;
 
     public Deck(Card commander, Set<Card> cards) {

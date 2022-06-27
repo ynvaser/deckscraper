@@ -5,13 +5,17 @@ plugins {
 }
 
 group = 'systems.bdev'
-version = '0.0.1-SNAPSHOT'
+version = null
 sourceCompatibility = '17'
 
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+}
+
+jar {
+	enabled = false
 }
 
 repositories {
@@ -33,3 +37,25 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+task moveDb(type: Copy) {
+	from 'database/h2db.mv.db'
+	into 'build/libs/database/'
+}
+
+task moveStartScript(type: Copy) {
+	from 'scripts/start.bat'
+	into 'build/libs/'
+}
+
+tasks.register('ensureDirectory') {
+	doLast {
+		mkdir "build/libs/input"
+		mkdir "build/libs/output"
+	}
+}
+
+
+assemble.finalizedBy(ensureDirectory)
+assemble.finalizedBy(moveDb)
+assemble.finalizedBy(moveStartScript)

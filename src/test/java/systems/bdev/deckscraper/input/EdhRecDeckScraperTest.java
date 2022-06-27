@@ -19,7 +19,7 @@ class EdhRecDeckScraperTest {
     @Test
     void shouldFindCommanders() {
         // When
-        Map<Card, Set<Deck>> decks = edhRecDeckScraper.getCommandersToDecks(Set.of(new Card("Chatterfang, Squirrel General")));
+        Map<Card, Set<Deck>> decks = edhRecDeckScraper.getCommandersToDecks(Set.of(new Card("Chatterfang, Squirrel General")), Integer.parseInt(args[2]));
 
         // Then
         assertThat(decks).isNotEmpty();

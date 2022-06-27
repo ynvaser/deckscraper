@@ -2,6 +2,7 @@ package systems.bdev.deckscraper.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
 import org.springframework.stereotype.Service;
 import systems.bdev.deckscraper.input.DeckBoxCsvParser;
 import systems.bdev.deckscraper.input.EdhRecDeckScraper;
@@ -18,14 +19,16 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class deckscraperService {
+public class DeckScraperService {
     @Autowired
     private DeckBoxCsvParser inventoryParser;
     @Autowired
@@ -47,7 +50,8 @@ public class deckscraperService {
                 }
                 Set<Card> commanders = scryfallCommanderSearcher.fetchCommanders();
                 commanders.removeIf(card -> !collection.contains(card));
-                Map<Card, Set<Deck>> allDecksForOwnedCommanders = edhRecDeckScraper.getCommandersToDecks(commanders);
+                Map<Card, Set<Deck>> allDecksForOwnedCommanders = new ConcurrentHashMap<>();
+                commanders.parallelStream().forEach(commander-> allDecksForOwnedCommanders.putAll(edhRecDeckScraper.getCommandersToDecks(Set.of(commander), Integer.parseInt(args[2]))));
                 Map<Card, Set<Deck>> decksAboveThreshold = allDecksForOwnedCommanders
                         .entrySet()
                         .stream()

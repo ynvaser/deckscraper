@@ -45,15 +45,18 @@ public class DeckEntity {
         return Objects.hash(id);
     }
 
-    public static DeckEntity fromDeck(String id, Deck deck) {
+    public static DeckEntity fromDeck(String id, Deck deck, String cardHash) {
         DeckEntity deckEntity = new DeckEntity();
         deckEntity.setId(id);
         deckEntity.setCommander(deck.getCommander().name());
         deckEntity.setCards(deck.getCards().stream().map(Card::name).collect(Collectors.toSet()));
+        deckEntity.setHash(cardHash);
         return deckEntity;
     }
 
     public Deck toDeck() {
-        return new Deck(new Card(commander), cards.stream().map(Card::new).collect(Collectors.toSet()));
+        Deck deck = new Deck(new Card(commander), cards.stream().map(Card::new).collect(Collectors.toSet()));
+        deck.setCardHash(hash);
+        return deck;
     }
 }

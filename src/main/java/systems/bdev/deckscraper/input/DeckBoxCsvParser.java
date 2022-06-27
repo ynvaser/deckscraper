@@ -27,9 +27,9 @@ public class DeckBoxCsvParser {
             CSVParser parsedCsv = CSV_FORMAT
                     .parse(fileReader);
             for (CSVRecord record : parsedCsv) {
-                if (record.size() != 16) {
-                    log.error("File {} line {} isn't of length 16! You need to import a Deckbox Inventory CSV here.", file.getName(), record.getRecordNumber());
-                    throw new RuntimeException("File " + file.getName() + " line " + record.getRecordNumber() + " isn't of length 16! You need to import a Deckbox Inventory CSV here.");
+                if (record.size() != 15) {
+                    log.error("File {} line {} isn't of length 15! You need to import a Deckbox Inventory CSV here.", file.getName(), record.getRecordNumber());
+                    throw new RuntimeException("File " + file.getName() + " line " + record.getRecordNumber() + " isn't of length 15! You need to import a Deckbox Inventory CSV here.");
                 } else if ("Count".equalsIgnoreCase(record.get(0))) {
                     log.info("Skipping header.");
                 } else {
