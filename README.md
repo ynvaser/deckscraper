@@ -1,12 +1,12 @@
 # ynvaser's EDH Deckscraper
 
-##What does this do?
+## What does this do?
 * This tool takes your collection of cards, and the cards you own that you can use as a commander, and gives you a list of decks from EDHREC that you can build or are close to building.
 
-##Required software
+## Required software
 * Java 17 installed
 
-##How to use  
+## How to use  
 * Extract the archive to a folder of your choice.
 * Export your DeckBox inventory as a .csv, and place it into the ***/input*** folder
 * Start the program with either the provided start.bat or start.sh files.
