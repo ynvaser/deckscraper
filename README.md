@@ -6,7 +6,8 @@
 ## Required software
 * Java 17 installed
 
-## How to use  
+## How to use 
+* If you'd rather watch a video: https://www.youtube.com/watch?v=jZG1FMniB_Y
 * Extract the archive to a folder of your choice.
 * Export your DeckBox inventory as a .csv, and place it into the ***/input*** folder
 * Start the program with either the provided start.bat or start.sh files.
