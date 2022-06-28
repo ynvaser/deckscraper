@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import systems.bdev.deckscraper.model.AverageDeck;
 import systems.bdev.deckscraper.model.Card;
 import systems.bdev.deckscraper.model.Deck;
 import systems.bdev.deckscraper.persistence.DeckEntity;
@@ -16,9 +17,12 @@ import systems.bdev.deckscraper.util.Utils;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
@@ -26,6 +30,7 @@ import java.util.stream.Collectors;
 public class EdhRecDeckScraper {
     private static String COMMANDER_REQUEST_TEMPLATE = "https://json.edhrec.com/v2/decks/%s.json";
     private static String DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/v2/deckpreview-temp/%s.json";
+    private static String AVERAGE_DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/v2/average-decks/%s.json";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -57,6 +62,40 @@ public class EdhRecDeckScraper {
                 log.error("EDHRec API commander request ({}) returned an error.", commander.name());
             }
         }
+    }
+
+    public Set<AverageDeck> fetchAverageDecks(Set<Card> commanders) {
+        Set<AverageDeck> averageDecks = ConcurrentHashMap.newKeySet();
+        commanders.parallelStream().forEach(commander -> {
+            ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander);
+            if (averageDeck != null) {
+                String description = averageDeck.getBody().getDescription();
+                String humanReadableDelimiter = "TCGplayer</a>";
+                description = description.substring(description.lastIndexOf(humanReadableDelimiter) + humanReadableDelimiter.length());
+                description = description.replaceAll("[123456789]", "");
+                Map<Card, Long> cardsAndCounts = Arrays.stream(description.split("\n")).filter(s -> !s.isBlank()).map(String::trim).map(Card::new).collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+                averageDecks.add(new AverageDeck(commander, cardsAndCounts));
+            } else {
+                log.error("Can't find average deck of commander {}", commander.name());
+            }
+        });
+        return averageDecks;
+    }
+
+    private ResponseEntity<AverageEdhRecDeck> getAverageDeck(Card commander) {
+        ResponseEntity<AverageEdhRecDeck> averageEdhRecDeckResponseEntity = null;
+        try {
+            averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_DECK_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name())), AverageEdhRecDeck.class);
+        } catch (Exception e) {
+            log.warn("Couldn't find average deck for commander by it's regular name: {}", commander.name());
+            Utils.sleep(200);
+            try {
+                averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_DECK_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name())), AverageEdhRecDeck.class);
+            } catch (Exception f) {
+                log.error("Couldn't find average deck for commander by it's name without the part after '//': {}", commander.name());
+            }
+        }
+        return averageEdhRecDeckResponseEntity;
     }
 
     private ResponseEntity<EdhRecDeck> getDeck(String urlHash) {
@@ -136,5 +175,11 @@ public class EdhRecDeckScraper {
         @JsonProperty("cardhash")
         private String cardHash;
         private Set<String> cards;
+    }
+
+    @Data
+    @NoArgsConstructor
+    private static class AverageEdhRecDeck {
+        private String description;
     }
 }

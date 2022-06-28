@@ -49,7 +49,7 @@ public class DeckEntity {
         DeckEntity deckEntity = new DeckEntity();
         deckEntity.setId(id);
         deckEntity.setCommander(deck.getCommander().name());
-        deckEntity.setCards(deck.getCards().stream().map(Card::name).collect(Collectors.toSet()));
+        deckEntity.setCards(deck.getCardsAsSet().stream().map(Card::name).collect(Collectors.toSet()));
         deckEntity.setHash(cardHash);
         return deckEntity;
     }

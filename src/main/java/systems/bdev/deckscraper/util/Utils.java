@@ -29,8 +29,12 @@ public class Utils {
     }
 
     public static Path createFolderIfNeeded(File jarLocation, String folderName) {
+        return createFolderIfNeeded(jarLocation.getPath() + folderName);
+    }
+
+    public static Path createFolderIfNeeded(String fullFolderPath) {
         try {
-            File inputFolder = new File(jarLocation.getPath() + folderName);
+            File inputFolder = new File(fullFolderPath);
             Path path = inputFolder.toPath();
             if (!inputFolder.exists()) {
                 log.info("Folder \"{}\" doesn't exist, creating...", path);
@@ -40,7 +44,7 @@ public class Utils {
             }
             return path;
         } catch (Exception e) {
-            log.error("File writing fail {}", folderName, e);
+            log.error("File writing fail {}", fullFolderPath, e);
             throw new RuntimeException(e);
         }
     }

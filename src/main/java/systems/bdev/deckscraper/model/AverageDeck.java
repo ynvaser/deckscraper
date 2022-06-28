@@ -2,18 +2,18 @@ package systems.bdev.deckscraper.model;
 
 import lombok.Data;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Data
-public final class Deck implements Cardholder {
+public final class AverageDeck implements Cardholder {
     private final Card commander;
-    private final Set<Card> cards;
+    private final Map<Card, Long> cards;
     private String cardHash;
     private Integer percentage;
 
-    public Deck(Card commander, Set<Card> cards) {
+    public AverageDeck(Card commander, Map<Card, Long> cards) {
         this.commander = commander;
         this.cards = cards;
     }
@@ -22,7 +22,7 @@ public final class Deck implements Cardholder {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Deck deck = (Deck) o;
+        AverageDeck deck = (AverageDeck) o;
         return commander.equals(deck.commander) && cards.equals(deck.cards);
     }
 
@@ -31,12 +31,23 @@ public final class Deck implements Cardholder {
         return Objects.hash(commander, cards);
     }
 
+    @Override
     public String toFile() {
-       return cards.stream().map(Card::name).sorted().collect(Collectors.joining("\n", commander.name()+"\n", ""));
+        StringBuilder sb = new StringBuilder()
+                .append("1 ")
+                .append(commander.name())
+                .append("\n");
+        cards.forEach((card, amount) -> sb
+                .append("")
+                .append(amount)
+                .append(" ")
+                .append(card.name())
+                .append("\n"));
+        return sb.toString();
     }
 
     @Override
     public Set<Card> getCardsAsSet() {
-        return getCards();
+        return cards.keySet();
     }
 }

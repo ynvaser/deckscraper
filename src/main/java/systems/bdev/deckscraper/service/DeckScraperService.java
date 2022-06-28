@@ -6,19 +6,11 @@ import org.springframework.stereotype.Service;
 import systems.bdev.deckscraper.input.DeckBoxCsvParser;
 import systems.bdev.deckscraper.input.EdhRecDeckScraper;
 import systems.bdev.deckscraper.input.ScryfallCommanderSearcher;
+import systems.bdev.deckscraper.model.AverageDeck;
 import systems.bdev.deckscraper.model.Card;
-import systems.bdev.deckscraper.model.Deck;
-import systems.bdev.deckscraper.persistence.DeckEntity;
 import systems.bdev.deckscraper.persistence.DeckRepository;
-import systems.bdev.deckscraper.util.Utils;
 
-import java.io.Console;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
@@ -61,7 +53,8 @@ public class DeckScraperService {
                 } else {
                     log.info("Skipping deck scraping due to setting...");
                 }
-                deckSaverService.saveDecks(jarLocation, outputFolderPath, collection, args);
+                deckSaverService.saveDecksFromDb(outputFolderPath, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]));
+                createAverageDecks(outputFolderPath, collection, commanders, Integer.parseInt(args[5]));
             } else {
                 log.error("No files present in input directory: {}", inputFolderPath);
             }
@@ -70,6 +63,12 @@ public class DeckScraperService {
         }
 
     }
+
+    private void createAverageDecks(Path outputFolderPath, Set<Card> collection, Set<Card> commanders, Integer averageDeckThreshold) {
+        Set<AverageDeck> averageDecks = edhRecDeckScraper.fetchAverageDecks(commanders);
+        deckSaverService.saveDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold);
+    }
+
     private File getJarLocation(String arg) {
         return new File(arg);
     }
