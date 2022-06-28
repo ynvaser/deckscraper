@@ -24,9 +24,13 @@ jobs:
       run: chmod +x gradlew
     - name: Assemble with Gradle
       run: ./gradlew clean assemble
+    - name: Set env
+      id: vars
+      shell: bash
+      run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
     - name: Upload Zip
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: build/dist/ynvasers_deckscraper.zip
-        tag: ${{ github.sha }}
+        tag: ${{ steps.vars.outputs.sha_short }}
