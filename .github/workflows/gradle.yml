@@ -29,4 +29,4 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: build/dist/ynvasers_deckscraper.zip
-        tag: ${{ github.ref }}
+        tag: ${{ github.sha }}
