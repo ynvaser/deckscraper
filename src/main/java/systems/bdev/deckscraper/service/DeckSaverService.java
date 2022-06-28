@@ -31,10 +31,11 @@ public class DeckSaverService {
     private DeckRepository deckRepository;
 
     @Transactional
-    public void saveDecksFromDb(Path outputFolderPath, Set<Card> collection, int percentage, int maxLands) {
+    public void saveDecksFromDb(Set<Card> commanders, Path outputFolderPath, Set<Card> collection, int percentage, int maxLands) {
         deckRepository
                 .findAllBy()
                 .map(DeckEntity::toDeck)
+                .filter(deck -> commanders.contains(deck.getCommander()))
                 .filter(deck -> isAboveThreshold(deck, collection, percentage, maxLands))
                 .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToJsonFileName(deck.getCommander().name())));
     }

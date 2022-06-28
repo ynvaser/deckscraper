@@ -53,7 +53,7 @@ public class DeckScraperService {
                 } else {
                     log.info("Skipping deck scraping due to setting...");
                 }
-                deckSaverService.saveDecksFromDb(outputFolderPath, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]));
+                deckSaverService.saveDecksFromDb(commanders, outputFolderPath, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]));
                 createAverageDecks(outputFolderPath, collection, commanders, Integer.parseInt(args[5]));
             } else {
                 log.error("No files present in input directory: {}", inputFolderPath);
