@@ -10,7 +10,6 @@ import systems.bdev.deckscraper.persistence.DeckRepository;
 import systems.bdev.deckscraper.util.Utils;
 
 import javax.transaction.Transactional;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;

@@ -28,9 +28,9 @@ import java.util.stream.Collectors;
 @Component
 @Slf4j
 public class EdhRecDeckScraper {
-    private static String COMMANDER_REQUEST_TEMPLATE = "https://json.edhrec.com/v2/decks/%s.json";
-    private static String DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/v2/deckpreview-temp/%s.json";
-    private static String AVERAGE_DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/v2/average-decks/%s.json";
+    private static String COMMANDER_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/decks/%s.json";
+    private static String DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/deckpreview-temp/%s.json";
+    private static String AVERAGE_DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/average-decks/%s.json";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -73,7 +73,13 @@ public class EdhRecDeckScraper {
                 String humanReadableDelimiter = "TCGplayer</a>";
                 description = description.substring(description.lastIndexOf(humanReadableDelimiter) + humanReadableDelimiter.length());
                 description = description.replaceAll("[123456789]", "");
-                Map<Card, Long> cardsAndCounts = Arrays.stream(description.split("\n")).filter(s -> !s.isBlank()).map(String::trim).map(Card::new).collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+                Map<Card, Long> cardsAndCounts = Arrays
+                        .stream(description.split("\n"))
+                        .filter(s -> !s.isBlank())
+                        .map(String::trim)
+                        .map(Card::new)
+                        .filter(card-> !commander.equals(card))
+                        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
                 averageDecks.add(new AverageDeck(commander, cardsAndCounts));
             } else {
                 log.error("Can't find average deck of commander {}", commander.name());
