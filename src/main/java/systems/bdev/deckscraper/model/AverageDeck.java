@@ -9,12 +9,14 @@ import java.util.Set;
 @Data
 public final class AverageDeck implements Cardholder {
     private final Card commander;
+    private final String tribe;
     private final Map<Card, Long> cards;
     private String cardHash;
     private Integer percentage;
 
-    public AverageDeck(Card commander, Map<Card, Long> cards) {
+    public AverageDeck(Card commander, String tribe, Map<Card, Long> cards) {
         this.commander = commander;
+        this.tribe = tribe;
         this.cards = cards;
     }
 
@@ -38,7 +40,6 @@ public final class AverageDeck implements Cardholder {
                 .append(commander.name())
                 .append("\n");
         cards.forEach((card, amount) -> sb
-                .append("")
                 .append(amount)
                 .append(" ")
                 .append(card.name())

@@ -8,7 +8,11 @@ public record Card(String name) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Card card = (Card) o;
-        return Objects.equals(name, card.name);
+        if (name != null) {
+            return name.equalsIgnoreCase(card.name);
+        } else {
+            return card.name == null;
+        }
     }
 
     @Override

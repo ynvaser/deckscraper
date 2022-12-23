@@ -18,4 +18,6 @@
     * Extract, and place contents in ***/database*** (replace all if prompted)
 * Once the tool finishes, check the ***/output*** folder for the decks above your set thresholds.
   * Subfolders are named after the commanders of the decks within. 
-  * Filename format: **{*percentage of cards you own*}_{*calculated deck hash*}.txt**
+  * Filename format: **{*percentage of cards you own*}\_{*calculated deck hash*}.txt**
+  * There's a folder called **'\_average'**, which contains the average decks that you own above your set percentage.
+    * Average deck filename format: **{*percentage of cards you own*}\_{*tribe / budget*}\_{*calculated deck hash*}.txt**

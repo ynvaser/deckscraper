@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.util.Pair;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -16,14 +17,18 @@ import systems.bdev.deckscraper.persistence.DeckRepository;
 import systems.bdev.deckscraper.util.Utils;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static systems.bdev.deckscraper.util.Utils.monthsBetween;
 
 @Component
 @Slf4j
@@ -31,6 +36,7 @@ public class EdhRecDeckScraper {
     private static String COMMANDER_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/decks/%s.json";
     private static String DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/deckpreview-temp/%s.json";
     private static String AVERAGE_DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/average-decks/%s.json";
+    private static String AVERAGE_TRIBE_DECK_REQUEST_TEMPLATE = "https://json.edhrec.com/pages/average-decks/%s/%s.json";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -69,18 +75,20 @@ public class EdhRecDeckScraper {
         commanders.parallelStream().forEach(commander -> {
             ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander);
             if (averageDeck != null) {
-                String description = averageDeck.getBody().getDescription();
-                String humanReadableDelimiter = "TCGplayer</a>";
-                description = description.substring(description.lastIndexOf(humanReadableDelimiter) + humanReadableDelimiter.length());
-                description = description.replaceAll("[123456789]", "");
-                Map<Card, Long> cardsAndCounts = Arrays
-                        .stream(description.split("\n"))
-                        .filter(s -> !s.isBlank())
-                        .map(String::trim)
-                        .map(Card::new)
-                        .filter(card-> !commander.equals(card))
-                        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-                averageDecks.add(new AverageDeck(commander, cardsAndCounts));
+                Map<String, String> tribesToDescriptions = createAverageDecksDescriptions(commander, averageDeck);
+                tribesToDescriptions.forEach((tribe, description) -> {
+                    String humanReadableDelimiter = "TCGplayer</a>";
+                    description = description.substring(description.lastIndexOf(humanReadableDelimiter) + humanReadableDelimiter.length());
+                    Map<Card, Long> cardsAndCounts = Arrays
+                            .stream(description.split("\n"))
+                            .filter(s -> !s.isBlank())
+                            .map(String::trim)
+                            .map(line-> Pair.of(line.replaceAll("[123456789]", "").trim(), line.split(" ")[0]))
+                            .map(pair-> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond())))
+                            .filter(pair -> !commander.equals(pair.getFirst()))
+                            .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond, Long::sum));
+                    averageDecks.add(new AverageDeck(commander, tribe.toLowerCase(Locale.ROOT), cardsAndCounts));
+                });
             } else {
                 log.error("Can't find average deck of commander {}", commander.name());
             }
@@ -88,15 +96,48 @@ public class EdhRecDeckScraper {
         return averageDecks;
     }
 
+    private Map<String, String> createAverageDecksDescriptions(Card commander, ResponseEntity<AverageEdhRecDeck> averageDeck) {
+        Map<String, String> tribesToDescriptions = new HashMap<>();
+        AverageEdhRecDeck body = averageDeck.getBody();
+        tribesToDescriptions.put("default", body.getDescription());
+        addAverageTribalDecks(commander, tribesToDescriptions, body);
+        return tribesToDescriptions;
+    }
+
+    private void addAverageTribalDecks(Card commander, Map<String, String> tribesToDescriptions, AverageEdhRecDeck body) {
+        List<AverageEdhRecDeckTribe> tribes = new ArrayList<>();
+        AverageEdhRecDeckPanel panels = body.getPanels();
+        if (panels != null) {
+            tribes.addAll(panels.getTribeLinks().getBudget());
+            tribes.addAll(panels.getTribeLinks().getThemes());
+        }
+        for (AverageEdhRecDeckTribe tribe : tribes) {
+            ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander, tribe.getSuffix().replaceAll("/", ""));
+            tribesToDescriptions.put(tribe.getValue(), averageDeck.getBody().getDescription());
+        }
+    }
+
     private ResponseEntity<AverageEdhRecDeck> getAverageDeck(Card commander) {
+        return getAverageDeck(commander, null);
+    }
+
+    private ResponseEntity<AverageEdhRecDeck> getAverageDeck(Card commander, String tribe) {
         ResponseEntity<AverageEdhRecDeck> averageEdhRecDeckResponseEntity = null;
         try {
-            averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_DECK_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name())), AverageEdhRecDeck.class);
+            if (tribe == null) {
+                averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_DECK_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name())), AverageEdhRecDeck.class);
+            } else {
+                averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_TRIBE_DECK_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name()), tribe), AverageEdhRecDeck.class);
+            }
         } catch (Exception e) {
             log.warn("Couldn't find average deck for commander by it's regular name: {}", commander.name());
             Utils.sleep(200);
             try {
-                averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_DECK_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name())), AverageEdhRecDeck.class);
+                if (tribe == null) {
+                    averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_DECK_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name())), AverageEdhRecDeck.class);
+                } else {
+                    averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_TRIBE_DECK_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name()), tribe), AverageEdhRecDeck.class);
+                }
             } catch (Exception f) {
                 log.error("Couldn't find average deck for commander by it's name without the part after '//': {}", commander.name());
             }
@@ -151,18 +192,9 @@ public class EdhRecDeckScraper {
         return urlHashes;
     }
 
-    private long monthsBetween(LocalDate a, LocalDate b) {
-        if (a == null || b == null) {
-            log.error("Supplied date is null!");
-        }
-        return ChronoUnit.MONTHS.between(
-                a.withDayOfMonth(1),
-                b.withDayOfMonth(1));
-    }
-
     @Data
     @NoArgsConstructor
-    public static class EdhRecCommanderPage {
+    private static class EdhRecCommanderPage {
         private List<EdhRecDeckId> table;
     }
 
@@ -187,5 +219,28 @@ public class EdhRecDeckScraper {
     @NoArgsConstructor
     private static class AverageEdhRecDeck {
         private String description;
+        private AverageEdhRecDeckPanel panels;
+    }
+
+    @Data
+    @NoArgsConstructor
+    private static class AverageEdhRecDeckPanel {
+        @JsonProperty("tribelinks")
+        private AverageEdhRecDeckTribeLinks tribeLinks;
+    }
+
+    @Data
+    @NoArgsConstructor
+    private static class AverageEdhRecDeckTribeLinks {
+        private List<AverageEdhRecDeckTribe> budget;
+        private List<AverageEdhRecDeckTribe> themes;
+    }
+
+    @Data
+    @NoArgsConstructor
+    private static class AverageEdhRecDeckTribe {
+        @JsonProperty("href-suffix")
+        private String suffix;
+        private String value;
     }
 }

@@ -12,4 +12,8 @@ public interface Cardholder {
     String toFile();
 
     Card getCommander();
+
+    default String getTribe() {
+        return "";
+    }
 }

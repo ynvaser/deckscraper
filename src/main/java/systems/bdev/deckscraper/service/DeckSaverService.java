@@ -39,7 +39,7 @@ public class DeckSaverService {
                 .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToJsonFileName(deck.getCommander().name())));
     }
 
-    public void saveDecks(Set<? extends Cardholder> decks, Path outputFolderPath, Set<Card> collection, Integer averageDeckThreshold) {
+    public void saveAverageDecks(Set<? extends Cardholder> decks, Path outputFolderPath, Set<Card> collection, Integer averageDeckThreshold) {
         decks
                 .stream()
                 .filter(deck -> isAboveThreshold(deck, collection, averageDeckThreshold, 99))
@@ -48,7 +48,7 @@ public class DeckSaverService {
 
     private void saveDeck(Path outputFolderPath, Cardholder cardHolder, String commanderFolderName) {
         Utils.createFolderIfNeeded(Path.of(outputFolderPath.toString(), commanderFolderName).toString());
-        String outputFileName = outputFolderPath + "\\" + commanderFolderName + "\\" + cardHolder.getPercentage() + "_" + cardHolder.hashCode() + ".txt";
+        String outputFileName = outputFolderPath + "\\" + commanderFolderName + "\\" + cardHolder.getPercentage() + "_" + cardHolder.getTribe() + "_" + cardHolder.hashCode() + ".txt";
         try (OutputStreamWriter fileWriter = new OutputStreamWriter(new FileOutputStream(outputFileName), StandardCharsets.UTF_8.newEncoder())) {
             fileWriter.write(cardHolder.toFile());
         } catch (Exception e) {

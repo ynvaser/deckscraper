@@ -66,7 +66,7 @@ public class DeckScraperService {
 
     private void createAverageDecks(Path outputFolderPath, Set<Card> collection, Set<Card> commanders, Integer averageDeckThreshold) {
         Set<AverageDeck> averageDecks = edhRecDeckScraper.fetchAverageDecks(commanders);
-        deckSaverService.saveDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold);
+        deckSaverService.saveAverageDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold);
     }
 
     private File getJarLocation(String arg) {
