@@ -11,7 +11,14 @@ public record Card(String name, Pair<Card, Card> parts, CardType cardType) {
     }
 
     public static Card combine(Card first, Card second) {
-        String name = first.name.compareTo(second.name) < 0 ? first.name + " " + second.name : second.name + " " + first.name;
+        String name;
+        if (first.cardType == CardType.BACKGROUND) {
+            name = second.name + " " + first.name;
+        } else if (second.cardType == CardType.BACKGROUND) {
+            name = first.name + " " + second.name;
+        } else {
+            name = first.name.compareTo(second.name) < 0 ? first.name + " " + second.name : second.name + " " + first.name;
+        }
         return new Card(name, Pair.of(first, second), CardType.COMBINED);
     }
 

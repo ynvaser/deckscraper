@@ -14,6 +14,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,9 +31,9 @@ public class DeckSaverService {
     private DeckRepository deckRepository;
 
     @Transactional
-    public void saveDecksFromDb(Set<Card> commanders, Path outputFolderPath, Set<Card> collection, int percentage, int maxLands) {
+    public void saveDecksFromDb(Set<Card> commanders, Path outputFolderPath, Set<Card> collection, int percentage, int maxLands, int monthsToLookBack) {
         deckRepository
-                .findAllBy()
+                .findAllBySaveDateAfter(LocalDate.now().minusMonths(monthsToLookBack))
                 .map(DeckEntity::toDeck)
                 .filter(deck -> commanders.contains(deck.getCommander()))
                 .filter(deck -> isAboveThreshold(deck, collection, percentage, maxLands))

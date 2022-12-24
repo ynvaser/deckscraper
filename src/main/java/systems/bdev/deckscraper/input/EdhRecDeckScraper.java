@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import systems.bdev.deckscraper.model.AverageDeck;
 import systems.bdev.deckscraper.model.Card;
+import systems.bdev.deckscraper.model.CardType;
 import systems.bdev.deckscraper.model.Deck;
 import systems.bdev.deckscraper.persistence.DeckEntity;
 import systems.bdev.deckscraper.persistence.DeckRepository;
@@ -25,7 +26,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static systems.bdev.deckscraper.util.Utils.monthsBetween;
@@ -48,15 +48,15 @@ public class EdhRecDeckScraper {
             log.info("Started scraping for {}", commander.name());
             ResponseEntity<EdhRecCommanderPage> commanderPageResponse = getCommanderPageResponse(commander);
             Utils.sleep(200);
-            List<DeckEntity> persistedDecks = deckRepository.findAllByCommander(commander.name());
-            if (commanderPageResponse != null) {
-                Set<String> urlHashes = getUrlHashesToProcess(commander, persistedDecks, commanderPageResponse, monthsToLookBack); // TODO update based on timestamp
-                urlHashes.parallelStream().forEach(urlHash -> {
+            List<DeckEntity> persistedDecksFresherThanMonthsToLookBack = deckRepository.findAllByCommander(commander.name());
+            if (commanderPageResponse != null && commanderPageResponse.getBody() != null  && commanderPageResponse.getBody().getTable() != null) {
+                Map<String, LocalDate> urlHashesWithSaveDates = getUrlHashesWithSaveDatesToProcess(commander, persistedDecksFresherThanMonthsToLookBack, commanderPageResponse, monthsToLookBack);
+                urlHashesWithSaveDates.keySet().parallelStream().forEach(urlHash -> {
                             log.info("Pulling deck {} for commander {}", urlHash, commander.name());
                             ResponseEntity<EdhRecDeck> deckResponse = getDeck(urlHash);
                             if (deckResponse != null) {
                                 Deck deck = new Deck(commander, deckResponse.getBody().getCards().stream().map(Card::new).collect(Collectors.toSet()));
-                                deckRepository.saveAndFlush(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash)); // TODO use cardhash meaningfully
+                                deckRepository.saveAndFlush(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash, urlHashesWithSaveDates.get(urlHash))); // TODO use cardhash meaningfully
                                 Utils.sleep(200);
                             } else {
                                 log.error("EDHRec API deck request (commander: {}, deck: {}) returned an error.", commander.name(), urlHash);
@@ -75,6 +75,7 @@ public class EdhRecDeckScraper {
         commanders.parallelStream().forEach(commander -> {
             ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander);
             if (averageDeck != null) {
+                log.info("Fetching average decks of commander {}", commander.name());
                 Map<String, String> tribesToDescriptions = createAverageDecksDescriptions(commander, averageDeck);
                 tribesToDescriptions.forEach((tribe, description) -> {
                     String humanReadableDelimiter = "TCGplayer</a>";
@@ -83,9 +84,12 @@ public class EdhRecDeckScraper {
                             .stream(description.split("\n"))
                             .filter(s -> !s.isBlank())
                             .map(String::trim)
-                            .map(line-> Pair.of(line.replaceAll("[123456789]", "").trim(), line.split(" ")[0]))
-                            .map(pair-> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond().matches("[123456789]") ? pair.getSecond() : "1")))
-                            .filter(pair -> !commander.equals(pair.getFirst()))
+                            .map(line -> Pair.of(line.replaceAll("[123456789]", "").trim(), line.split(" ")[0]))
+                            .map(pair -> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond().matches("[123456789]") ? pair.getSecond() : "1")))
+                            .filter(pair -> !(commander.equals(pair.getFirst()) ||
+                                    (commander.cardType() == CardType.COMBINED && (
+                                            commander.parts().getFirst().equals(pair.getFirst()) ||
+                                            commander.parts().getSecond().equals(pair.getFirst())))))
                             .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond, Long::sum));
                     averageDecks.add(new AverageDeck(commander, tribe.toLowerCase(Locale.ROOT), cardsAndCounts));
                 });
@@ -120,6 +124,7 @@ public class EdhRecDeckScraper {
                 }
             }
         }
+        log.info("Found the following average tribal decks for commander {}: [{}]", commander.name(), tribes.stream().map(AverageEdhRecDeckTribe::getValue).collect(Collectors.joining(", ")));
         for (AverageEdhRecDeckTribe tribe : tribes) {
             ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander, tribe.getSuffix().replaceAll("/", ""));
             tribesToDescriptions.put(tribe.getValue(), averageDeck.getBody().getDescription());
@@ -139,7 +144,7 @@ public class EdhRecDeckScraper {
                 averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_TRIBE_DECK_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name()), tribe), AverageEdhRecDeck.class);
             }
         } catch (Exception e) {
-            log.warn("Couldn't find average deck for commander by it's regular name: {}", commander.name());
+            log.debug("Couldn't find average deck for commander by it's regular name: {}", commander.name());
             Utils.sleep(200);
             try {
                 if (tribe == null) {
@@ -169,7 +174,7 @@ public class EdhRecDeckScraper {
         try {
             commanderPageResponse = restTemplate.getForEntity(String.format(COMMANDER_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name())), EdhRecCommanderPage.class);
         } catch (Exception e) {
-            log.warn("Couldn't find commander by it's regular name: {}", commander.name());
+            log.debug("Couldn't find commander by it's regular name: {}", commander.name());
             Utils.sleep(200);
             try {
                 commanderPageResponse = restTemplate.getForEntity(String.format(COMMANDER_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name())), EdhRecCommanderPage.class);
@@ -180,25 +185,28 @@ public class EdhRecDeckScraper {
         return commanderPageResponse;
     }
 
-    private Set<String> getUrlHashesToProcess(Card commander, List<DeckEntity> persistedDecks, ResponseEntity<EdhRecCommanderPage> commanderPageResponse, int monthsToLookBack) {
+    private Map<String, LocalDate> getUrlHashesWithSaveDatesToProcess(Card commander, List<DeckEntity> persistedDecks, ResponseEntity<EdhRecCommanderPage> commanderPageResponse, int monthsToLookBack) {
         LocalDate today = LocalDate.now();
         EdhRecCommanderPage commanderPage = commanderPageResponse.getBody();
-        Set<String> urlHashes = ConcurrentHashMap.newKeySet();
-        commanderPage
+        Map<String, LocalDate> urlHashesToSaveDates = commanderPage
                 .getTable()
                 .stream()
                 .filter(edhRecDeckId -> monthsBetween(edhRecDeckId.getSaveDate(), today) <= monthsToLookBack)
-                .map(EdhRecDeckId::getUrlHash)
-                .collect(Collectors.toCollection(() -> urlHashes));
-        log.info("Skipping {}/{} decks for commander {} due to time filtering ({} months)", commanderPage.getTable().size() - urlHashes.size(), commanderPage.getTable().size(), commander.name(), monthsToLookBack);
-        Set<String> persistedDeckIds = persistedDecks.stream().map(DeckEntity::getId).collect(Collectors.toSet());
+                .collect(Collectors.toConcurrentMap(EdhRecDeckId::getUrlHash, EdhRecDeckId::getSaveDate));
+        log.info("Skipping {}/{} decks for commander {} due to time filtering ({} months)", commanderPage.getTable().size() - urlHashesToSaveDates.size(), commanderPage.getTable().size(), commander.name(), monthsToLookBack);
         if (persistedDecks.size() > 0) {
-            urlHashes.removeAll(persistedDeckIds);
-            log.info("Skipping {} decks for commander {} due to them already being cached...", persistedDeckIds.size(), commander.name());
+            int removedHashesCount = 0;
+            for (DeckEntity persistedDeck : persistedDecks) {
+                if (urlHashesToSaveDates.containsKey(persistedDeck.getId()) && !persistedDeck.getSaveDate().isBefore(urlHashesToSaveDates.get(persistedDeck.getId()))) {
+                    urlHashesToSaveDates.remove(persistedDeck.getId());
+                    removedHashesCount++;
+                }
+            }
+            log.info("Skipping {} decks for commander {} due to them already being cached...", removedHashesCount, commander.name());
         } else {
             log.info("No persisted decks found for {}", commander.name());
         }
-        return urlHashes;
+        return urlHashesToSaveDates;
     }
 
     @Data

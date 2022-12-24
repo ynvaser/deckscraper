@@ -12,6 +12,7 @@ import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Lob;
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,6 +28,8 @@ public class DeckEntity {
     private String hash;
     @Column
     private String commander;
+    @Column(name = "save_date")
+    private LocalDate saveDate;
     @Column
     @Lob
     @Convert(converter = DelimitedStringToSet.class)
@@ -45,12 +48,13 @@ public class DeckEntity {
         return Objects.hash(id);
     }
 
-    public static DeckEntity fromDeck(String id, Deck deck, String cardHash) {
+    public static DeckEntity fromDeck(String id, Deck deck, String cardHash, LocalDate saveDate) {
         DeckEntity deckEntity = new DeckEntity();
         deckEntity.setId(id);
         deckEntity.setCommander(deck.getCommander().name());
         deckEntity.setCards(deck.getCardsAsSet().stream().map(Card::name).collect(Collectors.toSet()));
         deckEntity.setHash(cardHash);
+        deckEntity.setSaveDate(saveDate);
         return deckEntity;
     }
 

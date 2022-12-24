@@ -42,6 +42,7 @@ public class DeckScraperService {
             Path inputFolderPath = createFolderIfNeeded(jarLocation, "\\input");
             Path outputFolderPath = createFolderIfNeeded(jarLocation, "\\output");
             File[] inputFilesArray = inputFolderPath.toFile().listFiles();
+            final int monthsToLookBack = Integer.parseInt(args[2]);
             if (inputFilesArray != null && inputFilesArray.length != 0) {
                 log.info("Files present in \"{}\", processing...", inputFolderPath);
                 Set<Card> collection = new HashSet<>();
@@ -50,12 +51,12 @@ public class DeckScraperService {
                 }
                 Set<Card> commanders = parseCommanders(collection);
                 if (!"true".equalsIgnoreCase(args[3])) {
-                    commanders.parallelStream().forEach(commander -> edhRecDeckScraper.persistCommandersAndDecks(Set.of(commander), Integer.parseInt(args[2])));
+                    commanders.parallelStream().forEach(commander -> edhRecDeckScraper.persistCommandersAndDecks(Set.of(commander), monthsToLookBack));
                     log.info("Done with deck scraping!");
                 } else {
                     log.info("Skipping deck scraping due to setting...");
                 }
-                deckSaverService.saveDecksFromDb(commanders, outputFolderPath, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]));
+                deckSaverService.saveDecksFromDb(commanders, outputFolderPath, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]), monthsToLookBack);
                 createAverageDecks(outputFolderPath, collection, commanders, Integer.parseInt(args[5]));
             } else {
                 log.error("No files present in input directory: {}", inputFolderPath);
@@ -95,7 +96,7 @@ public class DeckScraperService {
                 case BACKGROUND: {
                     break;
                 }
-                default : {
+                default: {
                     throw new RuntimeException("Something went wrong :(");
                 }
             }
@@ -107,7 +108,7 @@ public class DeckScraperService {
         List<Card> firstSet = commandersAndBackgroundsByCardType.get(firstType);
         if (firstType.equals(secondType)) {
             for (int i = 0; i < firstSet.size(); i++) {
-                for (int j = i+1; j < firstSet.size(); j++) {
+                for (int j = i + 1; j < firstSet.size(); j++) {
                     Card partner = firstSet.get(i);
                     Card otherPartner = firstSet.get(j);
                     if (!partner.equals(otherPartner)) {

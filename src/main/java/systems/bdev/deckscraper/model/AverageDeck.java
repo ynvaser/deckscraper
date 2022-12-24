@@ -2,6 +2,7 @@ package systems.bdev.deckscraper.model;
 
 import lombok.Data;
 
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -50,8 +51,8 @@ public final class AverageDeck implements Cardholder {
                     .append(commander.name())
                     .append("\n");
         }
-        cards.forEach((card, amount) -> sb
-                .append(amount)
+        cards.keySet().stream().sorted(Comparator.comparing(Card::name)).forEach(card-> sb
+                .append(cards.get(card))
                 .append(" ")
                 .append(card.name())
                 .append("\n"));

@@ -1,5 +1,10 @@
 # ynvaser's EDH Deckscraper
 
+## What is new?
+* Support for Partners, Friends Forever and Backgrounds.
+* Support for average deck themes.
+* Minor improvements.
+
 ## What does this do?
 * This tool takes your collection of cards, and the cards you own that you can use as a commander, and gives you a list of decks from EDHREC that you can build or are close to building.
 
@@ -14,7 +19,7 @@
   * Open the script of your choice with a text editor to change your settings.
 * Be patient, scraping can take a long time depending on the amount of commander candidates that you have.
   * Future runs will be faster as results are cached on disk.
-  * [You can grab my database to possibly speed things up.](https://drive.google.com/file/d/1e76_Za23k0apmHlha644AsbX8gU4saQ8/view?usp=sharing)
+  * [You can grab my database to possibly speed things up.](https://drive.google.com/file/d/1b24C-oQicSCWRDT1E-xamOJbvoyEYZeK/view?usp=sharing)
     * Extract, and place contents in ***/database*** (replace all if prompted)
 * Once the tool finishes, check the ***/output*** folder for the decks above your set thresholds.
   * Subfolders are named after the commanders of the decks within. 
