@@ -87,7 +87,7 @@ public class EdhRecDeckScraper {
                             .map(line -> Pair.of(line.replaceAll("[123456789]", "").trim(), line.split(" ")[0]))
                             .map(pair -> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond().matches("[123456789]") ? pair.getSecond() : "1")))
                             .filter(pair -> !(commander.equals(pair.getFirst()) ||
-                                    (commander.cardType() == CardType.COMBINED && (
+                                    (commander.isCombined() && (
                                             commander.parts().getFirst().equals(pair.getFirst()) ||
                                             commander.parts().getSecond().equals(pair.getFirst())))))
                             .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond, Long::sum));

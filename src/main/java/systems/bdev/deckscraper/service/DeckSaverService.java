@@ -40,10 +40,10 @@ public class DeckSaverService {
                 .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToJsonFileName(deck.getCommander().name())));
     }
 
-    public void saveAverageDecks(Set<? extends Cardholder> decks, Path outputFolderPath, Set<Card> collection, Integer averageDeckThreshold) {
+    public void saveAverageDecks(Set<? extends Cardholder> decks, Path outputFolderPath, Set<Card> collection, Integer averageDeckThreshold, int maxLands) {
         decks
                 .stream()
-                .filter(deck -> isAboveThreshold(deck, collection, averageDeckThreshold, 99))
+                .filter(deck -> isAboveThreshold(deck, collection, averageDeckThreshold, maxLands))
                 .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToJsonFileName(deck.getCommander().name())));
     }
 
@@ -59,13 +59,24 @@ public class DeckSaverService {
 
     private boolean isAboveThreshold(Cardholder cardHolder, Set<Card> collection, Integer percentage, Integer maxLands) {
         Set<Card> cards = cardHolder.getCardsAsSet().stream().filter(card -> !BASIC_LANDS.contains(card)).collect(Collectors.toSet());
-        int points = 100 - cards.size(); //Max is 99, you already have the commander.
+        int points = 99 - cards.size(); // Basically the amount of basic lands
+        Card commander = cardHolder.getCommander();
+        if (commander.isCombined()) {
+            points--; // Since your 99 is a 98 with two commanders.
+            if (collection.contains(commander.parts().getFirst())) {
+                points++;
+            }
+            if (collection.contains(commander.parts().getSecond())) {
+                points++;
+            }
+        }
         for (Card card : cards) {
             if (collection.contains(card)) {
                 points++;
             }
         }
         cardHolder.setPercentage(points); // Dirty (no command/query separation), but simple
-        return cards.size() >= 100 - maxLands && points >= percentage;
+        int totalNumberOfCardsInDeck = cards.size() + (commander.isCombined() ? 2 : 1);
+        return totalNumberOfCardsInDeck >= 100 - maxLands && points >= percentage;
     }
 }

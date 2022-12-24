@@ -37,7 +37,7 @@ public final class AverageDeck implements Cardholder {
     @Override
     public String toFile() {
         StringBuilder sb = new StringBuilder();
-        if (commander.cardType() == CardType.COMBINED) {
+        if (commander.isCombined()) {
             sb
                     .append("1 ")
                     .append(commander.parts().getFirst().name())

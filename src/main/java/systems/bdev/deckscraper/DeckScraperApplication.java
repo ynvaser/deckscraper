@@ -15,7 +15,6 @@ public class DeckScraperApplication {
         ConfigurableApplicationContext applicationContext = SpringApplication.run(DeckScraperApplication.class, args);
         applicationContext.getBean(DeckScraperService.class).run(args);
         log.info("Application finished, please check the output folder for results.");
-        Utils.sleep(30000);
         SpringApplication.exit(applicationContext);
     }
 }

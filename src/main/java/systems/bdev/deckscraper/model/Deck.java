@@ -38,7 +38,7 @@ public final class Deck implements Cardholder {
                .collect(
                        Collectors.joining(
                                "\n",
-                               commander.cardType() == CardType.COMBINED ? commander.parts().getFirst().name()+"\n"+commander.parts().getSecond().name()+"\n" : commander.name()+"\n",
+                               commander.isCombined() ? commander.parts().getFirst().name()+"\n"+commander.parts().getSecond().name()+"\n" : commander.name()+"\n",
                                ""));
     }
 

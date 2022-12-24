@@ -22,6 +22,10 @@ public record Card(String name, Pair<Card, Card> parts, CardType cardType) {
         return new Card(name, Pair.of(first, second), CardType.COMBINED);
     }
 
+    public boolean isCombined() {
+        return cardType == CardType.COMBINED;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

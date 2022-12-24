@@ -39,25 +39,31 @@ public class DeckScraperService {
     public void run(String[] args) {
         try {
             File jarLocation = getJarLocation(args[0]);
+            int normalDeckThreshold = Integer.parseInt(args[1]);
+            final int monthsToLookBack = Integer.parseInt(args[2]);
+            boolean skipLookup = "true".equalsIgnoreCase(args[3]);
+            int maxLands = Integer.parseInt(args[4]);
+            int averageDeckThreshold = Integer.parseInt(args[5]);
+            boolean searchUnownedCommanders = "true".equalsIgnoreCase(args[6]);
+
             Path inputFolderPath = createFolderIfNeeded(jarLocation, "\\input");
             Path outputFolderPath = createFolderIfNeeded(jarLocation, "\\output");
             File[] inputFilesArray = inputFolderPath.toFile().listFiles();
-            final int monthsToLookBack = Integer.parseInt(args[2]);
             if (inputFilesArray != null && inputFilesArray.length != 0) {
                 log.info("Files present in \"{}\", processing...", inputFolderPath);
                 Set<Card> collection = new HashSet<>();
                 for (File file : inputFilesArray) {
                     collection.addAll(inventoryParser.processInventory(file));
                 }
-                Set<Card> commanders = parseCommanders(collection);
-                if (!"true".equalsIgnoreCase(args[3])) {
+                Set<Card> commanders = parseCommanders(collection, searchUnownedCommanders);
+                if (!skipLookup) {
                     commanders.parallelStream().forEach(commander -> edhRecDeckScraper.persistCommandersAndDecks(Set.of(commander), monthsToLookBack));
                     log.info("Done with deck scraping!");
                 } else {
                     log.info("Skipping deck scraping due to setting...");
                 }
-                deckSaverService.saveDecksFromDb(commanders, outputFolderPath, collection, Integer.parseInt(args[1]), Integer.parseInt(args[4]), monthsToLookBack);
-                createAverageDecks(outputFolderPath, collection, commanders, Integer.parseInt(args[5]));
+                deckSaverService.saveDecksFromDb(commanders, outputFolderPath, collection, normalDeckThreshold, maxLands, monthsToLookBack);
+                createAverageDecks(outputFolderPath, collection, commanders, averageDeckThreshold, maxLands);
             } else {
                 log.error("No files present in input directory: {}", inputFolderPath);
             }
@@ -67,10 +73,12 @@ public class DeckScraperService {
 
     }
 
-    private Set<Card> parseCommanders(Set<Card> collection) {
+    private Set<Card> parseCommanders(Set<Card> collection, boolean searchUnownedCommanders) {
         Set<Card> commanders = ConcurrentHashMap.newKeySet();
         Set<Card> commandersAndBackgrounds = scryfallCommanderSearcher.fetchCommandersAndBackgrounds();
-        commandersAndBackgrounds.removeIf(card -> !collection.contains(card));
+        if (!searchUnownedCommanders) {
+            commandersAndBackgrounds.removeIf(card -> !collection.contains(card));
+        }
         Map<CardType, List<Card>> commandersAndBackgroundsByCardType = commandersAndBackgrounds.stream().collect(Collectors.groupingBy(Card::cardType));
         commandersAndBackgroundsByCardType.forEach((type, cards) -> {
             switch (type) {
@@ -128,9 +136,9 @@ public class DeckScraperService {
         }
     }
 
-    private void createAverageDecks(Path outputFolderPath, Set<Card> collection, Set<Card> commanders, Integer averageDeckThreshold) {
+    private void createAverageDecks(Path outputFolderPath, Set<Card> collection, Set<Card> commanders, Integer averageDeckThreshold, int maxLands) {
         Set<AverageDeck> averageDecks = edhRecDeckScraper.fetchAverageDecks(commanders);
-        deckSaverService.saveAverageDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold);
+        deckSaverService.saveAverageDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold, maxLands);
     }
 
     private File getJarLocation(String arg) {
