@@ -1,8 +1,20 @@
 package systems.bdev.deckscraper.model;
 
+import org.springframework.data.util.Pair;
+
 import java.util.Objects;
 
-public record Card(String name) {
+public record Card(String name, Pair<Card, Card> parts, CardType cardType) {
+
+    public Card(String name) {
+        this(name, null, CardType.NORMAL);
+    }
+
+    public static Card combine(Card first, Card second) {
+        String name = first.name.compareTo(second.name) < 0 ? first.name + " " + second.name : second.name + " " + first.name;
+        return new Card(name, Pair.of(first, second), CardType.COMBINED);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

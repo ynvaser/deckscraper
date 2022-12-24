@@ -32,7 +32,14 @@ public final class Deck implements Cardholder {
     }
 
     public String toFile() {
-       return cards.stream().map(Card::name).sorted().collect(Collectors.joining("\n", commander.name()+"\n", ""));
+       return cards.stream()
+               .map(Card::name)
+               .sorted()
+               .collect(
+                       Collectors.joining(
+                               "\n",
+                               commander.cardType() == CardType.COMBINED ? commander.parts().getFirst().name()+"\n"+commander.parts().getSecond().name()+"\n" : commander.name()+"\n",
+                               ""));
     }
 
     @Override

@@ -17,7 +17,7 @@ class ScryfallCommanderSearcherTest {
     @Test
     void shouldFindCommanders() {
         // When
-        Set<Card> commanders = scryfallCommanderSearcher.fetchCommanders();
+        Set<Card> commanders = scryfallCommanderSearcher.fetchCommandersAndBackgrounds();
 
         // Then
         assertThat(commanders).isNotEmpty();

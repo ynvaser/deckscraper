@@ -8,13 +8,17 @@ import systems.bdev.deckscraper.input.EdhRecDeckScraper;
 import systems.bdev.deckscraper.input.ScryfallCommanderSearcher;
 import systems.bdev.deckscraper.model.AverageDeck;
 import systems.bdev.deckscraper.model.Card;
+import systems.bdev.deckscraper.model.CardType;
 import systems.bdev.deckscraper.persistence.DeckRepository;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static systems.bdev.deckscraper.util.Utils.createFolderIfNeeded;
 
@@ -44,9 +48,7 @@ public class DeckScraperService {
                 for (File file : inputFilesArray) {
                     collection.addAll(inventoryParser.processInventory(file));
                 }
-                Set<Card> commanders = ConcurrentHashMap.newKeySet();
-                commanders.addAll(scryfallCommanderSearcher.fetchCommanders());
-                commanders.removeIf(card -> !collection.contains(card));
+                Set<Card> commanders = parseCommanders(collection);
                 if (!"true".equalsIgnoreCase(args[3])) {
                     commanders.parallelStream().forEach(commander -> edhRecDeckScraper.persistCommandersAndDecks(Set.of(commander), Integer.parseInt(args[2])));
                     log.info("Done with deck scraping!");
@@ -62,6 +64,67 @@ public class DeckScraperService {
             log.error("Something went wrong :(", e);
         }
 
+    }
+
+    private Set<Card> parseCommanders(Set<Card> collection) {
+        Set<Card> commanders = ConcurrentHashMap.newKeySet();
+        Set<Card> commandersAndBackgrounds = scryfallCommanderSearcher.fetchCommandersAndBackgrounds();
+        commandersAndBackgrounds.removeIf(card -> !collection.contains(card));
+        Map<CardType, List<Card>> commandersAndBackgroundsByCardType = commandersAndBackgrounds.stream().collect(Collectors.groupingBy(Card::cardType));
+        commandersAndBackgroundsByCardType.forEach((type, cards) -> {
+            switch (type) {
+                case NORMAL: {
+                    commanders.addAll(cards);
+                    break;
+                }
+                case PARTNER: {
+                    commanders.addAll(cards);
+                    parseCombinedCards(commanders, commandersAndBackgroundsByCardType, CardType.PARTNER, CardType.PARTNER);
+                    break;
+                }
+                case FRIENDS_FOREVER: {
+                    commanders.addAll(cards);
+                    parseCombinedCards(commanders, commandersAndBackgroundsByCardType, CardType.FRIENDS_FOREVER, CardType.FRIENDS_FOREVER);
+                    break;
+                }
+                case CHOOSE_A_BACKGROUND: {
+                    commanders.addAll(cards);
+                    parseCombinedCards(commanders, commandersAndBackgroundsByCardType, CardType.CHOOSE_A_BACKGROUND, CardType.BACKGROUND);
+                    break;
+                }
+                case BACKGROUND: {
+                    break;
+                }
+                default : {
+                    throw new RuntimeException("Something went wrong :(");
+                }
+            }
+        });
+        return commanders;
+    }
+
+    private void parseCombinedCards(Set<Card> commanders, Map<CardType, List<Card>> commandersAndBackgroundsByCardType, CardType firstType, CardType secondType) {
+        List<Card> firstSet = commandersAndBackgroundsByCardType.get(firstType);
+        if (firstType.equals(secondType)) {
+            for (int i = 0; i < firstSet.size(); i++) {
+                for (int j = i+1; j < firstSet.size(); j++) {
+                    Card partner = firstSet.get(i);
+                    Card otherPartner = firstSet.get(j);
+                    if (!partner.equals(otherPartner)) {
+                        commanders.add(Card.combine(partner, otherPartner));
+                    }
+                }
+            }
+        } else {
+            List<Card> secondSet = commandersAndBackgroundsByCardType.get(secondType);
+            firstSet.forEach(partner -> {
+                secondSet.forEach(otherPartner -> {
+                    if (!partner.equals(otherPartner)) {
+                        commanders.add(Card.combine(partner, otherPartner));
+                    }
+                });
+            });
+        }
     }
 
     private void createAverageDecks(Path outputFolderPath, Set<Card> collection, Set<Card> commanders, Integer averageDeckThreshold) {

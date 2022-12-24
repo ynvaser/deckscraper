@@ -84,7 +84,7 @@ public class EdhRecDeckScraper {
                             .filter(s -> !s.isBlank())
                             .map(String::trim)
                             .map(line-> Pair.of(line.replaceAll("[123456789]", "").trim(), line.split(" ")[0]))
-                            .map(pair-> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond())))
+                            .map(pair-> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond().matches("[123456789]") ? pair.getSecond() : "1")))
                             .filter(pair -> !commander.equals(pair.getFirst()))
                             .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond, Long::sum));
                     averageDecks.add(new AverageDeck(commander, tribe.toLowerCase(Locale.ROOT), cardsAndCounts));
@@ -108,8 +108,17 @@ public class EdhRecDeckScraper {
         List<AverageEdhRecDeckTribe> tribes = new ArrayList<>();
         AverageEdhRecDeckPanel panels = body.getPanels();
         if (panels != null) {
-            tribes.addAll(panels.getTribeLinks().getBudget());
-            tribes.addAll(panels.getTribeLinks().getThemes());
+            AverageEdhRecDeckTribeLinks tribeLinks = panels.getTribeLinks();
+            if (tribeLinks != null) {
+                List<AverageEdhRecDeckTribe> budget = tribeLinks.getBudget();
+                if (budget != null) {
+                    tribes.addAll(budget);
+                }
+                List<AverageEdhRecDeckTribe> themes = tribeLinks.getThemes();
+                if (themes != null) {
+                    tribes.addAll(themes);
+                }
+            }
         }
         for (AverageEdhRecDeckTribe tribe : tribes) {
             ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander, tribe.getSuffix().replaceAll("/", ""));

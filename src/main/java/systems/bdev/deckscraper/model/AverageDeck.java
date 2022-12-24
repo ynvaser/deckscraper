@@ -35,10 +35,21 @@ public final class AverageDeck implements Cardholder {
 
     @Override
     public String toFile() {
-        StringBuilder sb = new StringBuilder()
-                .append("1 ")
-                .append(commander.name())
-                .append("\n");
+        StringBuilder sb = new StringBuilder();
+        if (commander.cardType() == CardType.COMBINED) {
+            sb
+                    .append("1 ")
+                    .append(commander.parts().getFirst().name())
+                    .append("\n")
+                    .append("1 ")
+                    .append(commander.parts().getSecond().name())
+                    .append("\n");
+        } else {
+            sb
+                    .append("1 ")
+                    .append(commander.name())
+                    .append("\n");
+        }
         cards.forEach((card, amount) -> sb
                 .append(amount)
                 .append(" ")
