@@ -13,6 +13,8 @@ import java.time.temporal.ChronoUnit;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Slf4j
 public class Utils {
+    public static final String IS_NUMBER_REGEX = "[1234567890]+";
+
     public static String cardNameToJsonFileName(String cardName) {
         return cardName.toLowerCase().replaceAll("[,'/.]", "").trim().replaceAll(" +", " ").replaceAll(" ", "-");
     }

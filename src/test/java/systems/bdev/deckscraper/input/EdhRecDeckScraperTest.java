@@ -30,7 +30,7 @@ class EdhRecDeckScraperTest {
     @Test
     void shouldFindAverageDecks() {
         // When
-        Set<AverageDeck> averageDecks = edhRecDeckScraper.fetchAverageDecks(Set.of(new Card("Chatterfang, Squirrel General")));
+        Set<AverageDeck> averageDecks = edhRecDeckScraper.fetchAverageDecks(Set.of(new Card("Aegar, the Freezing Flame")));
 
         // Then
         assertThat(averageDecks.size()).isGreaterThan(0);

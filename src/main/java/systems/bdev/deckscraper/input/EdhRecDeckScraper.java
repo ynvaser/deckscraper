@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import static systems.bdev.deckscraper.util.Utils.IS_NUMBER_REGEX;
 import static systems.bdev.deckscraper.util.Utils.monthsBetween;
 
 @Component
@@ -84,8 +85,8 @@ public class EdhRecDeckScraper {
                             .stream(description.split("\n"))
                             .filter(s -> !s.isBlank())
                             .map(String::trim)
-                            .map(line -> Pair.of(line.replaceAll("[123456789]", "").trim(), line.split(" ")[0]))
-                            .map(pair -> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond().matches("[123456789]") ? pair.getSecond() : "1")))
+                            .map(line -> Pair.of(line.replaceAll(IS_NUMBER_REGEX, "").trim(), line.split(" ")[0]))
+                            .map(pair -> Pair.of(new Card(pair.getFirst()), Long.parseLong(pair.getSecond().matches(IS_NUMBER_REGEX) ? pair.getSecond() : "1")))
                             .filter(pair -> !(commander.equals(pair.getFirst()) ||
                                     (commander.isCombined() && (
                                             commander.parts().getFirst().equals(pair.getFirst()) ||
