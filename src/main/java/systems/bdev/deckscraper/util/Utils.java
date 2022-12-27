@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 @Slf4j
 public class Utils {
     public static final String IS_NUMBER_REGEX = "[1234567890]+";
+    public static final String SEPARATOR = FileSystems.getDefault().getSeparator();
 
     public static String cardNameToJsonFileName(String cardName) {
         return cardName.toLowerCase().replaceAll("[,'/.]", "").trim().replaceAll(" +", " ").replaceAll(" ", "-");

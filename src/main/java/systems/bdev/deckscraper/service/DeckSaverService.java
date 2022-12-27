@@ -18,6 +18,8 @@ import java.time.LocalDate;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static systems.bdev.deckscraper.util.Utils.SEPARATOR;
+
 @Service
 @Slf4j
 public class DeckSaverService {
@@ -49,7 +51,7 @@ public class DeckSaverService {
 
     private void saveDeck(Path outputFolderPath, Cardholder cardHolder, String commanderFolderName) {
         Utils.createFolderIfNeeded(Path.of(outputFolderPath.toString(), commanderFolderName).toString());
-        String outputFileName = outputFolderPath + "\\" + commanderFolderName + "\\" + cardHolder.getPercentage() + "_" + cardHolder.getTribe() + "_" + cardHolder.hashCode() + ".txt";
+        String outputFileName = outputFolderPath + SEPARATOR + commanderFolderName + SEPARATOR + cardHolder.getPercentage() + "_" + cardHolder.getTribe() + "_" + cardHolder.hashCode() + ".txt";
         try (OutputStreamWriter fileWriter = new OutputStreamWriter(new FileOutputStream(outputFileName), StandardCharsets.UTF_8.newEncoder())) {
             fileWriter.write(cardHolder.toFile());
         } catch (Exception e) {

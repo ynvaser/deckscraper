@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import static systems.bdev.deckscraper.util.Utils.SEPARATOR;
 import static systems.bdev.deckscraper.util.Utils.createFolderIfNeeded;
 
 @Service
@@ -46,8 +47,8 @@ public class DeckScraperService {
             int averageDeckThreshold = Integer.parseInt(args[5]);
             boolean searchUnownedCommanders = "true".equalsIgnoreCase(args[6]);
 
-            Path inputFolderPath = createFolderIfNeeded(jarLocation, "\\input");
-            Path outputFolderPath = createFolderIfNeeded(jarLocation, "\\output");
+            Path inputFolderPath = createFolderIfNeeded(jarLocation, SEPARATOR + "input");
+            Path outputFolderPath = createFolderIfNeeded(jarLocation, SEPARATOR + "output");
             File[] inputFilesArray = inputFolderPath.toFile().listFiles();
             if (inputFilesArray != null && inputFilesArray.length != 0) {
                 log.info("Files present in \"{}\", processing...", inputFolderPath);
