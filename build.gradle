@@ -53,6 +53,11 @@ task moveBashStartScript(type: Copy) {
 	into 'build/libs/'
 }
 
+task moveConfig(type: Copy) {
+	from 'scripts/application.properties'
+	into 'build/libs/'
+}
+
 tasks.register('ensureDirectory') {
 	doLast {
 		mkdir "build/libs/input"
@@ -72,5 +77,6 @@ tasks.register('packageDistribution', Zip) {
 assemble.finalizedBy(ensureDirectory)
 ensureDirectory.finalizedBy(moveDb)
 moveDb.finalizedBy(moveStartScript)
-moveStartScript.finalizedBy(moveBashStartScript)
+moveStartScript.finalizedBy(moveConfig)
+moveConfig.finalizedBy(moveBashStartScript)
 moveBashStartScript.finalizedBy(packageDistribution)

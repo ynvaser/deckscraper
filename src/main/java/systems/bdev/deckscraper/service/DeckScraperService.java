@@ -2,7 +2,10 @@ package systems.bdev.deckscraper.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.system.ApplicationHome;
 import org.springframework.stereotype.Service;
+import systems.bdev.deckscraper.DeckScraperApplication;
 import systems.bdev.deckscraper.input.DeckBoxCsvParser;
 import systems.bdev.deckscraper.input.EdhRecDeckScraper;
 import systems.bdev.deckscraper.input.ScryfallCommanderSearcher;
@@ -37,15 +40,25 @@ public class DeckScraperService {
     @Autowired
     private DeckSaverService deckSaverService;
 
+    @Value("${config.normalDeckThreshold}")
+    private int normalDeckThreshold;
+    @Value("${config.monthsToLookBack}")
+    private int monthsToLookBack;
+    @Value("${config.skipNormalDeckLookup}")
+    private boolean skipNormalDeckLookup;
+    @Value("${config.maxLands}")
+    private int maxLands;
+    @Value("${config.averageDeckThreshold}")
+    private int averageDeckThreshold;
+    @Value("${config.searchUnownedCommanders}")
+    private boolean searchUnownedCommanders;
+
+
     public void run(String[] args) {
         try {
-            File jarLocation = getJarLocation(args[0]);
-            int normalDeckThreshold = Integer.parseInt(args[1]);
-            final int monthsToLookBack = Integer.parseInt(args[2]);
-            boolean skipLookup = "true".equalsIgnoreCase(args[3]);
-            int maxLands = Integer.parseInt(args[4]);
-            int averageDeckThreshold = Integer.parseInt(args[5]);
-            boolean searchUnownedCommanders = "true".equalsIgnoreCase(args[6]);
+            ApplicationHome applicationHome = new ApplicationHome(DeckScraperApplication.class);
+            File jarLocation = applicationHome.getSource().getParentFile();
+            printVariables(jarLocation);
 
             Path inputFolderPath = createFolderIfNeeded(jarLocation, SEPARATOR + "input");
             Path outputFolderPath = createFolderIfNeeded(jarLocation, SEPARATOR + "output");
@@ -57,7 +70,7 @@ public class DeckScraperService {
                     collection.addAll(inventoryParser.processInventory(file));
                 }
                 Set<Card> commanders = parseCommanders(collection, searchUnownedCommanders);
-                if (!skipLookup) {
+                if (!skipNormalDeckLookup) {
                     commanders.parallelStream().forEach(commander -> edhRecDeckScraper.persistCommandersAndDecks(Set.of(commander), monthsToLookBack));
                     log.info("Done with deck scraping!");
                 } else {
@@ -142,7 +155,9 @@ public class DeckScraperService {
         deckSaverService.saveAverageDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold, maxLands);
     }
 
-    private File getJarLocation(String arg) {
-        return new File(arg);
+    private void printVariables(File jarLocation) {
+        log.info("Application launched from: {}", jarLocation.getPath());
+        log.info("Config: normalDeckThreshold: {}, monthsToLookBack: {}, skipNormalDeckLookup: {}, maxLands: {}, averageDeckThreshold: {}, searchUnownedCommanders: {}",
+                normalDeckThreshold, monthsToLookBack, skipNormalDeckLookup, maxLands, averageDeckThreshold, searchUnownedCommanders);
     }
 }
