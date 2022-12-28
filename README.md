@@ -16,14 +16,14 @@
 * Extract the archive to a folder of your choice.
 * Export your DeckBox inventory as a .csv, and place it into the ***/input*** folder
 * Start the program with either the provided start.bat or start.sh files.
-  * Open the script of your choice with a text editor to change your settings:
-    * threshold
+  * Open the **'application.properties'** file with a text editor to change your settings:
+    * normalDeckThreshold
       * This is the required percentage of a given deck you need to own for it to be saved to the output folders.
       * default 80
-    * months
+    * monthsToLookBack
       * This is the lookback period, decks older than this value won't be scraped.
       * default 1
-    * skipLookup
+    * skipNormalDeckLookup
       * Set this to true if you'd like to skip scraping for regular decks. Average decks will always be looked up for now. Useful for saving time.
       * default false
     * maxlands
