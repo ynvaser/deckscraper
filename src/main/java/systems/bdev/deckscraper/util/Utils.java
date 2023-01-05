@@ -3,6 +3,7 @@ package systems.bdev.deckscraper.util;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import systems.bdev.deckscraper.model.Card;
 
 import java.io.File;
 import java.nio.file.FileSystems;
@@ -14,8 +15,11 @@ import java.time.temporal.ChronoUnit;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Slf4j
 public class Utils {
+    public static final String SPECIAL_DELIMITER = "OMGBBQ";
     public static final String IS_NUMBER_REGEX = "[1234567890]+";
     public static final String SEPARATOR = FileSystems.getDefault().getSeparator();
+    public static final Card CUBE_COMMANDER = new Card("##CUBES");
+    public static final String AVERAGE_DECK = "average_deck";
 
     public static String cardNameToJsonFileName(String cardName) {
         return cardName.toLowerCase().replaceAll("[,'/.]", "").trim().replaceAll(" +", " ").replaceAll(" ", "-");
@@ -53,8 +57,6 @@ public class Utils {
             if (!inputFolder.exists()) {
                 log.info("Folder \"{}\" doesn't exist, creating...", path);
                 Files.createDirectories(path);
-            } else {
-                log.info("Folder \"{}\" exists, skipping creation...", path);
             }
             return path;
         } catch (Exception e) {

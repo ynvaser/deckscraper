@@ -14,14 +14,13 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @Component
 public class DeckBoxCsvParser {
     private static final CSVFormat CSV_FORMAT = CSVFormat.DEFAULT;
 
-    public Set<Card> processInventory(final File file) {
+    public Map<Card, Integer> processInventory(final File file) {
         Map<Card, Integer> cardsAndCounts = new HashMap<>();
         try (InputStreamReader fileReader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8.newDecoder())) {
             CSVParser parsedCsv = CSV_FORMAT
@@ -33,7 +32,7 @@ public class DeckBoxCsvParser {
                 } else if ("Count".equalsIgnoreCase(record.get(0))) {
                     log.info("Skipping header.");
                 } else {
-                    Card card = new Card(record.get(2).replaceAll("\"", ""));
+                    Card card = new Card(record.get(2).replaceAll("\"", "").trim());
                     int numberOfCards = Integer.parseInt(record.get(0));
                     cardsAndCounts.merge(card, numberOfCards, Integer::sum);
                 }
@@ -42,6 +41,6 @@ public class DeckBoxCsvParser {
             log.error("Couldn't open file: {}", file.getName(), e);
             throw new RuntimeException(e);
         }
-        return cardsAndCounts.keySet();
+        return cardsAndCounts;
     }
 }

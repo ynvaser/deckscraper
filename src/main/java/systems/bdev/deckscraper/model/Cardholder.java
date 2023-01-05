@@ -1,9 +1,12 @@
 package systems.bdev.deckscraper.model;
 
-import java.util.Set;
+import java.util.Collection;
+import java.util.Map;
 
 public interface Cardholder {
-    Set<Card> getCardsAsSet();
+    Map<Card, Long> getCardsAndCounts();
+
+    Collection<Card> getCards();
 
     void setPercentage(Integer points);
 
@@ -12,6 +15,8 @@ public interface Cardholder {
     String toFile();
 
     Card getCommander();
+
+    String getIdentifier();
 
     default String getTribe() {
         return "";

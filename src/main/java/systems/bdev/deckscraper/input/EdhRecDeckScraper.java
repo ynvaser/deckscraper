@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static systems.bdev.deckscraper.util.Utils.IS_NUMBER_REGEX;
@@ -49,21 +50,23 @@ public class EdhRecDeckScraper {
             log.info("Started scraping for {}", commander.name());
             ResponseEntity<EdhRecCommanderPage> commanderPageResponse = getCommanderPageResponse(commander);
             Utils.sleep(200);
-            List<DeckEntity> persistedDecksFresherThanMonthsToLookBack = deckRepository.findAllByCommander(commander.name());
+            List<DeckEntity> persistedDecks = deckRepository.findAllByCommander(commander.name());
+            List<DeckEntity> decksToBePersisted = new CopyOnWriteArrayList<>();
             if (commanderPageResponse != null && commanderPageResponse.getBody() != null  && commanderPageResponse.getBody().getTable() != null) {
-                Map<String, LocalDate> urlHashesWithSaveDates = getUrlHashesWithSaveDatesToProcess(commander, persistedDecksFresherThanMonthsToLookBack, commanderPageResponse, monthsToLookBack);
+                Map<String, LocalDate> urlHashesWithSaveDates = getUrlHashesWithSaveDatesToProcess(commander, persistedDecks, commanderPageResponse, monthsToLookBack);
                 urlHashesWithSaveDates.keySet().parallelStream().forEach(urlHash -> {
                             log.info("Pulling deck {} for commander {}", urlHash, commander.name());
                             ResponseEntity<EdhRecDeck> deckResponse = getDeck(urlHash);
                             if (deckResponse != null) {
                                 Deck deck = new Deck(commander, deckResponse.getBody().getCards().stream().map(Card::new).collect(Collectors.toSet()));
-                                deckRepository.saveAndFlush(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash, urlHashesWithSaveDates.get(urlHash))); // TODO use cardhash meaningfully
-                                Utils.sleep(200);
+                                decksToBePersisted.add(DeckEntity.fromDeck(urlHash, deck, deckResponse.getBody().cardHash, urlHashesWithSaveDates.get(urlHash))); // TODO use cardhash meaningfully
+                                Utils.sleep(100);
                             } else {
                                 log.error("EDHRec API deck request (commander: {}, deck: {}) returned an error.", commander.name(), urlHash);
                             }
                         }
                 );
+                deckRepository.saveAllAndFlush(decksToBePersisted);
                 log.info("Done with all decks for {}!!!", commander.name());
             } else {
                 log.error("EDHRec API commander request ({}) returned an error.", commander.name());
@@ -73,7 +76,7 @@ public class EdhRecDeckScraper {
 
     public Set<AverageDeck> fetchAverageDecks(Set<Card> commanders) {
         Set<AverageDeck> averageDecks = ConcurrentHashMap.newKeySet();
-        commanders.parallelStream().forEach(commander -> {
+        for (Card commander : commanders) {
             ResponseEntity<AverageEdhRecDeck> averageDeck = getAverageDeck(commander);
             if (averageDeck != null) {
                 log.info("Fetching average decks of commander {}", commander.name());
@@ -90,14 +93,14 @@ public class EdhRecDeckScraper {
                             .filter(pair -> !(commander.equals(pair.getFirst()) ||
                                     (commander.isCombined() && (
                                             commander.parts().getFirst().equals(pair.getFirst()) ||
-                                            commander.parts().getSecond().equals(pair.getFirst())))))
+                                                    commander.parts().getSecond().equals(pair.getFirst())))))
                             .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond, Long::sum));
                     averageDecks.add(new AverageDeck(commander, tribe.toLowerCase(Locale.ROOT), cardsAndCounts));
                 });
             } else {
                 log.error("Can't find average deck of commander {}", commander.name());
             }
-        });
+        }
         return averageDecks;
     }
 

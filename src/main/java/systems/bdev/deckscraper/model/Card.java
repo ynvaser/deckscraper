@@ -2,6 +2,7 @@ package systems.bdev.deckscraper.model;
 
 import org.springframework.data.util.Pair;
 
+import java.util.Locale;
 import java.util.Objects;
 
 public record Card(String name, Pair<Card, Card> parts, CardType cardType) {
@@ -40,6 +41,10 @@ public record Card(String name, Pair<Card, Card> parts, CardType cardType) {
 
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        if (name != null) {
+            return Objects.hash(name.toLowerCase(Locale.ROOT));
+        } else {
+            return 0;
+        }
     }
 }

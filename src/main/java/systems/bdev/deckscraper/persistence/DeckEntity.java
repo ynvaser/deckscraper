@@ -52,7 +52,7 @@ public class DeckEntity {
         DeckEntity deckEntity = new DeckEntity();
         deckEntity.setId(id);
         deckEntity.setCommander(deck.getCommander().name());
-        deckEntity.setCards(deck.getCardsAsSet().stream().map(Card::name).collect(Collectors.toSet()));
+        deckEntity.setCards(deck.getCards().stream().map(Card::name).map(String::toLowerCase).collect(Collectors.toSet()));
         deckEntity.setHash(cardHash);
         deckEntity.setSaveDate(saveDate);
         return deckEntity;
@@ -61,6 +61,7 @@ public class DeckEntity {
     public Deck toDeck() {
         Deck deck = new Deck(new Card(commander), cards.stream().map(Card::new).collect(Collectors.toSet()));
         deck.setCardHash(hash);
+        deck.setId(id);
         return deck;
     }
 }
