@@ -71,7 +71,7 @@ public final class AverageDeck implements Cardholder {
         sb.append(Utils.cardNameToJsonFileName(commander.name()));
         if (tribe != null && !"default".equals(tribe)) {
             sb.append("/");
-            sb.append(tribe);
+            sb.append("cheap".equalsIgnoreCase(tribe) ? "budget" : tribe);
         }
         sb.append("\n\n");
         if (commander.isCombined()) {
