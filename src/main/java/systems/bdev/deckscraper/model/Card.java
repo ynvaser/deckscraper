@@ -1,5 +1,6 @@
 package systems.bdev.deckscraper.model;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.util.Pair;
 
 import java.util.Locale;
@@ -9,6 +10,12 @@ public record Card(String name, Pair<Card, Card> parts, CardType cardType) {
 
     public Card(String name) {
         this(name, null, CardType.NORMAL);
+    }
+
+    public Card(String name, Pair<Card, Card> parts, CardType cardType) {
+        this.name = StringUtils.stripAccents(name);
+        this.parts = parts;
+        this.cardType = cardType;
     }
 
     public static Card combine(Card first, Card second) {

@@ -9,7 +9,7 @@ import systems.bdev.deckscraper.DeckScraperApplication;
 import systems.bdev.deckscraper.input.CubeCobraService;
 import systems.bdev.deckscraper.input.DeckBoxCsvParser;
 import systems.bdev.deckscraper.input.EdhRecDeckScraper;
-import systems.bdev.deckscraper.input.ScryfallCommanderSearcher;
+import systems.bdev.deckscraper.input.ScryfallService;
 import systems.bdev.deckscraper.model.AverageDeck;
 import systems.bdev.deckscraper.model.Card;
 import systems.bdev.deckscraper.model.CardType;
@@ -33,7 +33,7 @@ public class DeckScraperService {
     @Autowired
     private DeckBoxCsvParser inventoryParser;
     @Autowired
-    private ScryfallCommanderSearcher scryfallCommanderSearcher;
+    private ScryfallService scryfallService;
     @Autowired
     private EdhRecDeckScraper edhRecDeckScraper;
     @Autowired
@@ -67,6 +67,8 @@ public class DeckScraperService {
     private boolean disableAverageDecks;
     @Value("${config.disableCubes}")
     private boolean disableCubes;
+    @Value("${config.ownAllLands}")
+    private boolean ownAllLands;
 
     public void run(String[] args) {
         try {
@@ -83,6 +85,9 @@ public class DeckScraperService {
                 for (File file : inputFilesArray) {
                     Map<Card, Integer> fileContents = inventoryParser.processInventory(file);
                     fileContents.forEach((key, value) -> collection.merge(key, value, Integer::sum));
+                }
+                if (ownAllLands) {
+                    scryfallService.fetchAllLands().forEach(land -> collection.merge(land, 1, Integer::sum));
                 }
                 Set<Card> commanders = parseCommanders(collection.keySet(), searchUnownedCommanders);
                 if (!skipNormalDeckLookup && !disableNormalDecks) {
@@ -108,7 +113,7 @@ public class DeckScraperService {
 
     private Set<Card> parseCommanders(Set<Card> collection, boolean searchUnownedCommanders) {
         Set<Card> commanders = ConcurrentHashMap.newKeySet();
-        Set<Card> commandersAndBackgrounds = scryfallCommanderSearcher.fetchCommandersAndBackgrounds();
+        Set<Card> commandersAndBackgrounds = scryfallService.fetchCommandersAndBackgrounds();
         if (!searchUnownedCommanders) {
             commandersAndBackgrounds.removeIf(card -> !collection.contains(card));
         }
@@ -177,7 +182,7 @@ public class DeckScraperService {
 
     private void createAverageDecks(Path outputFolderPath, Set<Card> collection, Set<Card> commanders, Integer averageDeckThreshold, int maxLands) {
         if (!disableAverageDecks) {
-            commanders.parallelStream().forEach(commander->{
+            commanders.parallelStream().forEach(commander -> {
                 Set<AverageDeck> averageDecks = edhRecDeckScraper.fetchAverageDecks(Set.of(commander));
                 deckSaverService.saveAverageDecks(averageDecks, Path.of(outputFolderPath.toString(), "_average"), collection, averageDeckThreshold, maxLands);
             });

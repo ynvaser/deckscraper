@@ -48,14 +48,14 @@ public class DeckSaverService {
                 .map(DeckEntity::toDeck)
                 .filter(deck -> commanders.contains(deck.getCommander()))
                 .filter(deck -> isAboveThreshold(deck, collection, percentage, maxLands))
-                .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToJsonFileName(deck.getCommander().name())));
+                .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToFileName(deck.getCommander().name())));
     }
 
     public void saveAverageDecks(Set<? extends Cardholder> decks, Path outputFolderPath, Set<Card> collection, Integer averageDeckThreshold, int maxLands) {
         decks
                 .stream()
                 .filter(deck -> isAboveThreshold(deck, collection, averageDeckThreshold, maxLands))
-                .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToJsonFileName(deck.getCommander().name())));
+                .forEach(deck -> saveDeck(outputFolderPath, deck, Utils.cardNameToFileName(deck.getCommander().name())));
     }
 
     @Transactional
@@ -75,12 +75,12 @@ public class DeckSaverService {
         } else {
             folderName = "_cube";
         }
-        String fileName = outputFolderPath + SEPARATOR + folderName + SEPARATOR + cube.getPercentage() + "_" + Utils.cardNameToJsonFileName(cube.getCubeName()).replaceAll("[^a-zA-Z0-9]", "") + "_" + cube.getId() + ".txt";
+        String fileName = outputFolderPath + SEPARATOR + folderName + SEPARATOR + cube.getPercentage() + "_" + Utils.cardNameToFileName(cube.getCubeName()).replaceAll("[^a-zA-Z0-9]", "") + "_" + cube.getId() + ".txt";
         saveDeck(outputFolderPath, cube, folderName, fileName);
     }
 
     private void saveDeck(Path outputFolderPath, Cardholder cardHolder, String folderName) {
-        String fileName = outputFolderPath + SEPARATOR + folderName + SEPARATOR + cardHolder.getPercentage() + "_" + cardHolder.getTribe() + "_" + cardHolder.getIdentifier() + ".txt";
+        String fileName = outputFolderPath + SEPARATOR + folderName + SEPARATOR + cardHolder.getPercentage() + "_" + Utils.cardNameToFileName(cardHolder.getTribe()) + "_" + Utils.cardNameToFileName(cardHolder.getIdentifier()) + ".txt";
         saveDeck(outputFolderPath, cardHolder, folderName, fileName);
     }
 

@@ -10,16 +10,25 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-class ScryfallCommanderSearcherTest {
+class ScryfallServiceTest {
     @Autowired
-    private ScryfallCommanderSearcher scryfallCommanderSearcher;
+    private ScryfallService scryfallService;
 
     @Test
     void shouldFindCommanders() {
         // When
-        Set<Card> commanders = scryfallCommanderSearcher.fetchCommandersAndBackgrounds();
+        Set<Card> commanders = scryfallService.fetchCommandersAndBackgrounds();
 
         // Then
         assertThat(commanders).isNotEmpty();
+    }
+
+    @Test
+    void shouldFetchAllLands() {
+        // When
+        Set<Card> lands = scryfallService.fetchAllLands();
+
+        // Then
+        assertThat(lands).isNotEmpty();
     }
 }

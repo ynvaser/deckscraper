@@ -29,6 +29,10 @@ public class Utils {
         return cardNameToJsonFileName(cardName.substring(0, cardName.indexOf('/')));
     }
 
+    public static String cardNameToFileName(String cardName) {
+        return cardNameToJsonFileName(cardName).replaceAll("\\+", "plus").replaceAll("[^A-Za-z0-9_-]+", "");
+    }
+
     public static long monthsBetween(LocalDate a, LocalDate b) {
         if (a == null || b == null) {
             log.error("Supplied date is null!");
