@@ -197,7 +197,9 @@ public class DeckScraperService {
 
     private void printVariables(File jarLocation) {
         log.info("Application launched from: {}", jarLocation.getPath());
-        log.info("Config: normalDeckThreshold: {}, monthsToLookBack: {}, skipNormalDeckLookup: {}, maxLands: {}, averageDeckThreshold: {}, searchUnownedCommanders: {}, skipCubeLookup: {}, cubeThreshold: {}, popularCubeFollowerCount: {}, ",
-                normalDeckThreshold, monthsToLookBack, skipNormalDeckLookup, maxLands, averageDeckThreshold, searchUnownedCommanders, skipCubeLookup, cubeThreshold);
+        log.info("Config: normalDeckThreshold: {}, monthsToLookBack: {}, skipNormalDeckLookup: {}, maxLands: {}, averageDeckThreshold: {}, searchUnownedCommanders: {}, skipCubeLookup: {}, cubeThreshold: {}, popularCubeFollowerCount: {}, ownAllLands: {}",
+                normalDeckThreshold, monthsToLookBack, skipNormalDeckLookup, maxLands, averageDeckThreshold, searchUnownedCommanders, skipCubeLookup, cubeThreshold, popularCubeFollowerCount, ownAllLands);
+        log.info("Toggles: normal decks: {}, average decks: {}, cubes: {}",
+                !disableNormalDecks, !disableAverageDecks, !disableCubes);
     }
 }
