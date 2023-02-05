@@ -7,7 +7,7 @@ import org.springframework.boot.system.ApplicationHome;
 import org.springframework.stereotype.Service;
 import systems.bdev.deckscraper.DeckScraperApplication;
 import systems.bdev.deckscraper.input.CubeCobraService;
-import systems.bdev.deckscraper.input.DeckBoxCsvParser;
+import systems.bdev.deckscraper.input.CsvParserService;
 import systems.bdev.deckscraper.input.EdhRecDeckScraper;
 import systems.bdev.deckscraper.input.ScryfallService;
 import systems.bdev.deckscraper.model.AverageDeck;
@@ -31,7 +31,7 @@ import static systems.bdev.deckscraper.util.Utils.createFolderIfNeeded;
 @Slf4j
 public class DeckScraperService {
     @Autowired
-    private DeckBoxCsvParser inventoryParser;
+    private CsvParserService inventoryParser;
     @Autowired
     private ScryfallService scryfallService;
     @Autowired
@@ -82,8 +82,9 @@ public class DeckScraperService {
             if (inputFilesArray != null && inputFilesArray.length != 0) {
                 log.info("Files present in \"{}\", processing...", inputFolderPath);
                 Map<Card, Integer> collection = new HashMap<>();
+                Map<String, String> incompleteDoubleFacedCardNameMap = scryfallService.fetchMapOfFrontFaceLowercaseNameAndFullNameOfEveryDoubleFacedCard();
                 for (File file : inputFilesArray) {
-                    Map<Card, Integer> fileContents = inventoryParser.processInventory(file);
+                    Map<Card, Integer> fileContents = inventoryParser.processInventory(file, incompleteDoubleFacedCardNameMap);
                     fileContents.forEach((key, value) -> collection.merge(key, value, Integer::sum));
                 }
                 if (ownAllLands) {

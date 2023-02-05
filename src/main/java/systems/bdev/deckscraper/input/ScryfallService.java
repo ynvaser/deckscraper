@@ -11,9 +11,11 @@ import systems.bdev.deckscraper.model.Card;
 import systems.bdev.deckscraper.model.CardType;
 import systems.bdev.deckscraper.util.Utils;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class ScryfallService {
     private static final String COMMANDER_QUERY_STRING_FORMAT = "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&order=name&page=%d&q=is:commander&unique=cards";
     private static final String LAND_QUERY_STRING_FORMAT = "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&order=name&page=%d&unique=cards&q=(-type:artifact+-type:creature+-type:enchantment+-type:instant+-type:planeswalker+-type:sorcery)+type:land+-is:digital&unique=cards&order=name";
+    private static final String DOUBLE_FACED_CARD_QUERY_STRING_FORMAT = "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&order=name&page=1&unique=cards&q=is:double-faced not:art_series not:digital not:token -layout:double_faced_token&page=%d";
     private static final String FRIENDS_FOREVER_ORACLE_TEXT = "friends forever";
     private static final String CHOOSE_A_BACKGROUND_ORACLE_TEXT = "choose a background";
     private static final String BACKGROUND = "Background";
@@ -44,7 +47,7 @@ public class ScryfallService {
                             CardType cardType;
                             if (scryfallCard.getKeywords().contains(PARTNER) || scryfallCard.getKeywords().contains(PARTNER.toLowerCase(Locale.ROOT))) {
                                 cardType = CardType.PARTNER;
-                            }else if (oracleTextInLowerCase.contains(FRIENDS_FOREVER_ORACLE_TEXT)) {
+                            } else if (oracleTextInLowerCase.contains(FRIENDS_FOREVER_ORACLE_TEXT)) {
                                 cardType = CardType.FRIENDS_FOREVER;
                             } else if (oracleTextInLowerCase.contains(CHOOSE_A_BACKGROUND_ORACLE_TEXT)) {
                                 cardType = CardType.CHOOSE_A_BACKGROUND;
@@ -66,11 +69,24 @@ public class ScryfallService {
     }
 
     public Set<Card> fetchAllLands() {
+        return fetchQueryResults(LAND_QUERY_STRING_FORMAT);
+    }
+
+    public Map<String, String> fetchMapOfFrontFaceLowercaseNameAndFullNameOfEveryDoubleFacedCard() {
+        Map<String, String> result = new HashMap<>();
+        Set<Card> doubleFacedCards = fetchQueryResults(DOUBLE_FACED_CARD_QUERY_STRING_FORMAT);
+        doubleFacedCards.forEach(card->{
+            result.put(card.name().trim().toLowerCase(Locale.ROOT).split("//")[0].trim(), card.name());
+        });
+        return result;
+    }
+
+    private Set<Card> fetchQueryResults(String queryStringFormat) {
         Set<Card> result = new HashSet<>(2000);
         int page = 1;
         ResponseEntity<ScryfallResult> response;
         do {
-            response = restTemplate.getForEntity(String.format(LAND_QUERY_STRING_FORMAT, page++), ScryfallResult.class);
+            response = restTemplate.getForEntity(String.format(queryStringFormat, page++), ScryfallResult.class);
             if (response.getStatusCode().is2xxSuccessful()) {
                 ScryfallResult body = response.getBody();
                 body.getData()

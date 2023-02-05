@@ -1,12 +1,18 @@
 # ynvaser's Deckscraper
 
 ## What is new?
-* Cube support with data from [CubeCobra!](https://github.com/dekkerglen/CubeCobra)
-  * Special thanks to [Dekkaru](https://github.com/dekkerglen) for granting me access to their bulk data exports.
-  * Exports run once a month, so the data isn't perfectly up-to-date.
-* Fixed a bug for people with "Choose a Background" commanders who don't own any Backgrounds.
-* All decks now contain a URL to the source of the deck or cube.
-* Added ability to disable parts of the tool entirely
+* Added support for multiple inventory csv formats!
+  * Deckbox
+  * Deckstats
+  * Manabox
+  * Moxfield
+  * MtgGoldfish
+  * Tappedout
+    * This one was tricky, as they don't note both faces of a double-faced card. I solved it with a scryfall search for every double-faced card which happens at startup time.
+  * Anything where the following headers are present:
+    * for card quantity either one of ["count", "amount", "quantity", "qty"]
+    * for card name either one of ["name", "card_name", "card"]
+    * (The trick noted under Tappedout works for any csv if you have that limitation)
 
 ## What does this do?
 * This tool takes your collection of cards, and gives you a list of decks from EDHREC that you can build or are close to building.

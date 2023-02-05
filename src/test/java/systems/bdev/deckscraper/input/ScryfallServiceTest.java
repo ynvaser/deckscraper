@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import systems.bdev.deckscraper.model.Card;
 
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,5 +31,14 @@ class ScryfallServiceTest {
 
         // Then
         assertThat(lands).isNotEmpty();
+    }
+
+    @Test
+    void shouldFetchIncompleteDoubleFacedCardNameMap() {
+        // When
+        Map<String, String> result = scryfallService.fetchMapOfFrontFaceLowercaseNameAndFullNameOfEveryDoubleFacedCard();
+
+        // Then
+        assertThat(result).isNotEmpty();
     }
 }

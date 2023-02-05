@@ -148,7 +148,7 @@ public class EdhRecDeckScraper {
                 averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_TRIBE_DECK_REQUEST_TEMPLATE, Utils.cardNameToJsonFileName(commander.name()), tribe), AverageEdhRecDeck.class);
             }
         } catch (Exception e) {
-            log.debug("Couldn't find average deck for commander by it's regular name: {}", commander.name());
+            log.debug("Couldn't find average deck for commander by it's regular name: [{}], trying a lookup with only the front face name", commander.name());
             Utils.sleep(200);
             try {
                 if (tribe == null) {
@@ -157,7 +157,7 @@ public class EdhRecDeckScraper {
                     averageEdhRecDeckResponseEntity = restTemplate.getForEntity(String.format(AVERAGE_TRIBE_DECK_REQUEST_TEMPLATE, Utils.cardNameWithoutBacksideFileName(commander.name()), tribe), AverageEdhRecDeck.class);
                 }
             } catch (Exception f) {
-                log.error("Couldn't find average deck for commander by it's name without the part after '//': {}", commander.name());
+                log.warn("Couldn't find average decks for [{}] and tribe [{}]", commander.name(), tribe);
             }
         }
         return averageEdhRecDeckResponseEntity;
