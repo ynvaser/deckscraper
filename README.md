@@ -19,8 +19,6 @@
     * It has a lot of options, the file contains explanations.
 * Be patient, scraping can take a long time depending on the amount of commander candidates that you have (or if you have the searchUnownedCommanders on).
   * Future runs will be faster as results are cached on disk.
-  * [You can grab my database to speed things up. (has data from 2022.10 - 2023.01)](https://drive.google.com/file/d/1NWYOHdK8YFtJ012tm6k9Jp5b9FKROINV/view?usp=share_link)
-    * Extract, and place contents in ***/database*** (replace all if prompted)
 * Once the tool finishes, check the ***/output*** folder for the decks above your set thresholds.
   * Subfolders are named after the commanders of the decks within. 
   * Filename format: **{*percentage of cards you own*}\_{*calculated deck hash*}.txt**
