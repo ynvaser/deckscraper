@@ -10,10 +10,18 @@
 ## Required software
 * Java 17 installed
 
+## Supported inventory formats:
+* Deckbox
+* Deckstats
+* Manabox
+* Moxfield
+* MtgGoldfish
+* Tappedout
+
 ## How to use 
 * If you'd rather watch a video: https://www.youtube.com/watch?v=jZG1FMniB_Y
 * Extract the archive to a folder of your choice.
-* Export your DeckBox inventory as a .csv, and place it into the ***/input*** folder
+* Export your inventory from one of the sites above as a .csv, and place it into the ***/input*** folder
 * Start the program with either the provided start.bat or start.sh files.
   * Open the **'application.properties'** file with a text editor to change your settings:
     * It has a lot of options, the file contains explanations.
