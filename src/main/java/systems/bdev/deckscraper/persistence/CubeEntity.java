@@ -39,20 +39,25 @@ public class CubeEntity {
     public Cube toCube() {
         Cube cube = new Cube();
         cube.setId(id);
-        cube.setCards(cards.stream().map(Card::new).collect(Collectors.toList()));
+        cube.setCards(cards != null ? cards.stream().map(Card::new).collect(Collectors.toList()) : List.of());
         cube.setDateUpdated(dateUpdated);
         cube.setCubeName(cubeName);
-        cube.setUsersFollowing(usersFollowing);
+        cube.setUsersFollowing(usersFollowing != null ? usersFollowing : List.of());
         return cube;
     }
 
     public static CubeEntity fromCube(Cube cube) {
         CubeEntity cubeEntity = new CubeEntity();
         cubeEntity.setId(cube.getId());
-        cubeEntity.setCards(cube.getCards().stream().map(Card::name).collect(Collectors.toList()));
+        List<Card> cubeCards = cube.getCards();
+        cubeEntity.setCards(cubeCards != null ? cubeCards.stream().map(Card::name).collect(Collectors.toList()) : List.of());
         cubeEntity.setDateUpdated(cube.getDateUpdated());
-        cubeEntity.setCubeName(cube.getCubeName());
-        cubeEntity.setUsersFollowing(cube.getUsersFollowing());
+        String name = cube.getCubeName();
+        if (name != null && name.length() > 255) {
+            name = name.substring(0, 255);
+        }
+        cubeEntity.setCubeName(name);
+        cubeEntity.setUsersFollowing(cube.getUsersFollowing() != null ? cube.getUsersFollowing() : List.of());
         return cubeEntity;
     }
 }

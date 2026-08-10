@@ -22,7 +22,7 @@ public class Utils {
     public static final String AVERAGE_DECK = "average_deck";
 
     public static String cardNameToJsonFileName(String cardName) {
-        return cardName.toLowerCase().replaceAll("[,'/.]", "").trim().replaceAll(" +", " ").replaceAll(" ", "-");
+        return cardName.toLowerCase().replaceAll("[,'/.&]", "").trim().replaceAll(" +", " ").replaceAll(" ", "-");
     }
 
     public static String cardNameWithoutBacksideFileName(String cardName) {

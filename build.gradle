@@ -27,10 +27,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.apache.commons:commons-csv:1.9.0'
 	implementation 'org.apache.httpcomponents:httpclient:4.5.13'
-	implementation 'com.dropbox.core:dropbox-core-sdk:5.4.4'
-	implementation 'org.apache.commons:commons-compress:1.22'
 	implementation 'org.apache.commons:commons-lang3:3.12.0'
-	implementation 'org.tukaani:xz:1.9'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.1'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'
@@ -41,11 +38,6 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
-}
-
-task moveDb(type: Copy) {
-	from 'database/h2db.mv.db'
-	into 'build/libs/database/'
 }
 
 task moveStartScript(type: Copy) {
@@ -67,6 +59,7 @@ tasks.register('ensureDirectory') {
 	doLast {
 		mkdir "build/libs/input"
 		mkdir "build/libs/output"
+		mkdir "build/libs/database"
 	}
 }
 
@@ -80,8 +73,7 @@ tasks.register('packageDistribution', Zip) {
 
 
 assemble.finalizedBy(ensureDirectory)
-ensureDirectory.finalizedBy(moveDb)
-moveDb.finalizedBy(moveStartScript)
+ensureDirectory.finalizedBy(moveStartScript)
 moveStartScript.finalizedBy(moveConfig)
 moveConfig.finalizedBy(moveBashStartScript)
 moveBashStartScript.finalizedBy(packageDistribution)

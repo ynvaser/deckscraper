@@ -30,11 +30,15 @@ public class Cube implements Cardholder {
 
     public List<Card> getCards() {
         List<Card> result = new ArrayList<>();
-        cardsAndCounts.forEach((card, count) -> {
-            for (long i = 0; i < count; i++) {
-                result.add(card);
-            }
-        });
+        if (cardsAndCounts != null) {
+            cardsAndCounts.forEach((card, count) -> {
+                if (card != null && count != null) {
+                    for (long i = 0; i < count; i++) {
+                        result.add(card);
+                    }
+                }
+            });
+        }
         return result;
     }
 

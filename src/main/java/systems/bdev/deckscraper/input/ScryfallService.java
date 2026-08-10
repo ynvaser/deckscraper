@@ -3,13 +3,16 @@ package systems.bdev.deckscraper.input;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import systems.bdev.deckscraper.model.Card;
 import systems.bdev.deckscraper.model.CardType;
-import systems.bdev.deckscraper.util.Utils;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,6 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
+@Slf4j
 public class ScryfallService {
     private static final String COMMANDER_QUERY_STRING_FORMAT = "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&order=name&page=%d&q=is:commander&unique=cards";
     private static final String LAND_QUERY_STRING_FORMAT = "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&order=name&page=%d&unique=cards&q=(-type:artifact+-type:creature+-type:enchantment+-type:instant+-type:planeswalker+-type:sorcery)+type:land+-is:digital&unique=cards&order=name";
@@ -30,14 +34,37 @@ public class ScryfallService {
     private static final String PARTNER = "Partner";
 
     @Autowired
-    private RestTemplate restTemplate;
+    @Qualifier("scryfallRestTemplate")
+    private RestTemplate scryfallRestTemplate;
+
+    private ResponseEntity<ScryfallResult> getForEntityWithRetry(String url) {
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return scryfallRestTemplate.getForEntity(url, ScryfallResult.class);
+            } catch (HttpStatusCodeException e) {
+                if (e.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                    log.warn("Scryfall rate limit (429) hit on attempt {}/{}. Pausing for 60 seconds as required by Scryfall...", attempt, maxAttempts);
+                    try {
+                        Thread.sleep(60000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Interrupted during 60-second Scryfall rate limit cooldown", ie);
+                    }
+                } else {
+                    throw e;
+                }
+            }
+        }
+        throw new RuntimeException("Exceeded maximum retries for Scryfall URL: " + url);
+    }
 
     public Set<Card> fetchCommandersAndBackgrounds() {
         Set<Card> result = new HashSet<>(2000);
         int page = 1;
         ResponseEntity<ScryfallResult> response;
         do {
-            response = restTemplate.getForEntity(String.format(COMMANDER_QUERY_STRING_FORMAT, page++), ScryfallResult.class);
+            response = getForEntityWithRetry(String.format(COMMANDER_QUERY_STRING_FORMAT, page++));
             if (response.getStatusCode().is2xxSuccessful()) {
                 ScryfallResult body = response.getBody();
                 body.getData()
@@ -62,7 +89,6 @@ public class ScryfallService {
             } else {
                 throw new RuntimeException("Scryfall returned an error: " + response.getStatusCode().getReasonPhrase());
             }
-            Utils.sleep(200); // Scryfall has a request limit of 10 requests per second, doing half of that just to be safe.
         } while (response.getBody().getHasMore());
 
         return result;
@@ -86,7 +112,7 @@ public class ScryfallService {
         int page = 1;
         ResponseEntity<ScryfallResult> response;
         do {
-            response = restTemplate.getForEntity(String.format(queryStringFormat, page++), ScryfallResult.class);
+            response = getForEntityWithRetry(String.format(queryStringFormat, page++));
             if (response.getStatusCode().is2xxSuccessful()) {
                 ScryfallResult body = response.getBody();
                 body.getData()
@@ -96,7 +122,6 @@ public class ScryfallService {
             } else {
                 throw new RuntimeException("Scryfall returned an error: " + response.getStatusCode().getReasonPhrase());
             }
-            Utils.sleep(200); // Scryfall has a request limit of 10 requests per second, doing half of that just to be safe.
         } while (response.getBody().getHasMore());
 
         return result;

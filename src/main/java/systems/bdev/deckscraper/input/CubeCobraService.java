@@ -1,45 +1,38 @@
 package systems.bdev.deckscraper.input;
 
-import com.dropbox.core.DbxException;
-import com.dropbox.core.v2.DbxClientV2;
-import com.dropbox.core.v2.files.ListFolderResult;
-import com.dropbox.core.v2.files.Metadata;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
-import org.apache.commons.compress.archivers.sevenz.SevenZFile;
-import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.util.Pair;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import systems.bdev.deckscraper.model.Cube;
 import systems.bdev.deckscraper.persistence.ConfigEntity;
 import systems.bdev.deckscraper.persistence.ConfigRepository;
 import systems.bdev.deckscraper.persistence.CubeEntity;
 import systems.bdev.deckscraper.persistence.CubeRepository;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CubeCobraService {
-    private static final TypeReference<List<Cube>> CUBE_LIST_TYPE_REFERENCE = new TypeReference<>() {
-    };
+    public static final String CUBE_EXPORTS_URL = "https://cubecobra-public.s3.us-east-2.amazonaws.com/export/cubes.json";
 
-    private final DbxClientV2 dbxClient;
+    private final RestTemplate restTemplate;
     private final CubeRepository cubeRepository;
     private final ConfigRepository configRepository;
 
@@ -49,51 +42,56 @@ public class CubeCobraService {
 
     public void refreshCubeDatabase() {
         try {
-            Metadata manifestMetadata = dbxClient.files().getMetadata("/cube_exports/manifest.7z");
-            if (manifestMetadata != null) {
-                Pair<Boolean, ZonedDateTime> isStoredDataStaleAndUpstreamUpdateDateTime = getIsStoredDataStaleAndUpstreamUpdateDateTime(manifestMetadata);
-                Boolean isStoredDataStale = isStoredDataStaleAndUpstreamUpdateDateTime.getFirst();
-                String upstreamUpdateDateTime = isStoredDataStaleAndUpstreamUpdateDateTime.getSecond().toString();
-                if (isStoredDataStale) {
-                    ListFolderResult folderContents = dbxClient.files().listFolder("/cube_exports/");
-                    for (Metadata remoteFile : folderContents.getEntries()) {
-                        if (!remoteFile.getName().contains("manifest")) {
-                            List<String> fileContents = fetchFileContents(remoteFile);
-                            for (String fileContent : fileContents) {
-                                List<Cube> cubes = objectMapper.readValue(fileContent, CUBE_LIST_TYPE_REFERENCE);
-                                List<CubeEntity> entities = cubes.stream().map(cube -> {
+            HttpHeaders headers = restTemplate.headForHeaders(CUBE_EXPORTS_URL);
+            long lastModifiedMillis = headers.getLastModified();
+            ZonedDateTime upstreamUpdateDateTime;
+            if (lastModifiedMillis > 0) {
+                upstreamUpdateDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(lastModifiedMillis), ZoneId.of("UTC"));
+            } else {
+                upstreamUpdateDateTime = ZonedDateTime.now();
+            }
+
+            Pair<Boolean, ZonedDateTime> isStoredDataStaleAndUpstreamUpdateDateTime = getIsStoredDataStaleAndUpstreamUpdateDateTime(upstreamUpdateDateTime);
+            Boolean isStoredDataStale = isStoredDataStaleAndUpstreamUpdateDateTime.getFirst();
+
+            if (isStoredDataStale) {
+                log.info("Cube data is stale or missing. Downloading Cube database export from {}...", CUBE_EXPORTS_URL);
+                restTemplate.execute(CUBE_EXPORTS_URL, HttpMethod.GET, null, response -> {
+                    try (InputStream inputStream = response.getBody();
+                         JsonParser parser = objectMapper.getFactory().createParser(inputStream)) {
+                        if (parser.nextToken() == JsonToken.START_ARRAY) {
+                            List<CubeEntity> batch = new ArrayList<>();
+                            while (parser.nextToken() == JsonToken.START_OBJECT) {
+                                Cube cube = objectMapper.readValue(parser, Cube.class);
+                                if (cube != null && cube.getId() != null) {
                                     log.info("Loading cube {} (ID: {})", cube.getCubeName(), cube.getId());
-                                    return CubeEntity.fromCube(cube);
-                                }).collect(Collectors.toList());
-                                cubeRepository.saveAllAndFlush(entities);
+                                    batch.add(CubeEntity.fromCube(cube));
+                                    if (batch.size() >= 1000) {
+                                        cubeRepository.saveAllAndFlush(batch);
+                                        batch.clear();
+                                    }
+                                }
                             }
-                        } else {
-                            log.info("Skipping manifest...");
+                            if (!batch.isEmpty()) {
+                                cubeRepository.saveAllAndFlush(batch);
+                                batch.clear();
+                            }
                         }
                     }
-                    saveUpstreamUpdateDateTime(upstreamUpdateDateTime);
-                } else {
-                    log.info("Stored data is not stale, skipping Cube lookup...");
-                }
+                    return null;
+                });
+                saveUpstreamUpdateDateTime(upstreamUpdateDateTime.toString());
+                log.info("Cube database refresh completed successfully.");
+            } else {
+                log.info("Stored data is not stale, skipping Cube lookup...");
             }
-        } catch (DbxException | IOException e) {
+        } catch (Exception e) {
             log.error("Error in CubeCobraService!", e);
             throw new RuntimeException(e);
         }
     }
 
-    private void saveUpstreamUpdateDateTime(String upstreamUpdateDateTime) {
-        Optional<ConfigEntity> maybeConfigEntity = configRepository.findById(1);
-        ConfigEntity configEntity = maybeConfigEntity.orElse(new ConfigEntity());
-        configEntity.setId(1);
-        configEntity.setContent(upstreamUpdateDateTime);
-        configRepository.saveAndFlush(configEntity);
-    }
-
-    private Pair<Boolean, ZonedDateTime> getIsStoredDataStaleAndUpstreamUpdateDateTime(Metadata manifestMetadata) throws JsonProcessingException {
-        String manifestContents = fetchFileContents(manifestMetadata).get(0);
-        ObjectNode jsonNodes = objectMapper.readValue(manifestContents, ObjectNode.class);
-        ZonedDateTime upstreamUpdateDateTime = ZonedDateTime.parse(jsonNodes.get("date_exported").asText());
+    private Pair<Boolean, ZonedDateTime> getIsStoredDataStaleAndUpstreamUpdateDateTime(ZonedDateTime upstreamUpdateDateTime) {
         Optional<ConfigEntity> maybeLastUpdateTime = configRepository.findById(1);
         if (maybeLastUpdateTime.isPresent()) {
             ZonedDateTime storedUpdateDateTime = ZonedDateTime.parse(maybeLastUpdateTime.get().getContent());
@@ -102,50 +100,11 @@ public class CubeCobraService {
         return Pair.of(true, upstreamUpdateDateTime);
     }
 
-    private List<String> fetchFileContents(Metadata remoteFile) {
-        List<String> result = new ArrayList<>();
-        ByteArrayOutputStream bos = null;
-        SevenZFile sevenZFile = null;
-        SeekableInMemoryByteChannel seekableInMemoryByteChannel = null;
-        try {
-            bos = new ByteArrayOutputStream();
-            dbxClient.files().download(remoteFile.getPathLower()).download(bos);
-            seekableInMemoryByteChannel = new SeekableInMemoryByteChannel(bos.toByteArray());
-            sevenZFile = new SevenZFile(seekableInMemoryByteChannel);
-            SevenZArchiveEntry entry = sevenZFile.getNextEntry();
-            while (entry != null) {
-                long size = entry.getSize();
-                byte[] data = new byte[(int) size];
-                sevenZFile.read(data, 0, data.length);
-                result.add(new String(data, StandardCharsets.UTF_8));
-                entry = sevenZFile.getNextEntry();
-            }
-        } catch (DbxException | IOException e) {
-            log.error("Error fetching file contents! Filename: {}", remoteFile.getName(), e);
-            throw new RuntimeException(e);
-        } finally {
-            closeResources(bos, sevenZFile, seekableInMemoryByteChannel);
-        }
-        return result;
-    }
-
-    private void closeResources(ByteArrayOutputStream bos, SevenZFile sevenZFile, SeekableInMemoryByteChannel seekableInMemoryByteChannel) {
-        if (bos != null) {
-            try {
-                bos.close();
-            } catch (Exception e) {
-                log.info("bos already closed");
-            }
-        }
-        if (sevenZFile != null) {
-            try {
-                sevenZFile.close();
-            } catch (IOException e) {
-                log.info("sevenZFile already closed");
-            }
-        }
-        if (seekableInMemoryByteChannel != null && seekableInMemoryByteChannel.isOpen()) {
-            seekableInMemoryByteChannel.close();
-        }
+    private void saveUpstreamUpdateDateTime(String upstreamUpdateDateTime) {
+        Optional<ConfigEntity> maybeConfigEntity = configRepository.findById(1);
+        ConfigEntity configEntity = maybeConfigEntity.orElse(new ConfigEntity());
+        configEntity.setId(1);
+        configEntity.setContent(upstreamUpdateDateTime);
+        configRepository.saveAndFlush(configEntity);
     }
 }

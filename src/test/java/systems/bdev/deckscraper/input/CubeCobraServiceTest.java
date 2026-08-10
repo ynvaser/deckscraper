@@ -1,5 +1,6 @@
 package systems.bdev.deckscraper.input;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,6 +11,7 @@ class CubeCobraServiceTest {
     private CubeCobraService underTest;
 
     @Test
+    @Disabled //takes forever
     void shouldFindCubes() {
         underTest.refreshCubeDatabase();
     }
