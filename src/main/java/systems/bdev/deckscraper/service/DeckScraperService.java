@@ -61,6 +61,8 @@ public class DeckScraperService {
     private int cubeThreshold;
     @Value("${config.popularCubeFollowerCount}")
     private int popularCubeFollowerCount;
+    @Value("${config.minCubeCardCount}")
+    private int minCubeCardCount;
     @Value("${config.disableNormalDecks}")
     private boolean disableNormalDecks;
     @Value("${config.disableAverageDecks}")
@@ -192,14 +194,14 @@ public class DeckScraperService {
 
     private void createCubes(Path outputFolderPath, Map<Card, Integer> collection, int cubeThreshold, int monthsToLookBack) {
         if (!disableCubes) {
-            deckSaverService.saveCubes(outputFolderPath, collection, cubeThreshold, monthsToLookBack, popularCubeFollowerCount);
+            deckSaverService.saveCubes(outputFolderPath, collection, cubeThreshold, monthsToLookBack, popularCubeFollowerCount, minCubeCardCount);
         }
     }
 
     private void printVariables(File jarLocation) {
         log.info("Application launched from: {}", jarLocation.getPath());
-        log.info("Config: normalDeckThreshold: {}, monthsToLookBack: {}, skipNormalDeckLookup: {}, maxLands: {}, averageDeckThreshold: {}, searchUnownedCommanders: {}, skipCubeLookup: {}, cubeThreshold: {}, popularCubeFollowerCount: {}, ownAllLands: {}",
-                normalDeckThreshold, monthsToLookBack, skipNormalDeckLookup, maxLands, averageDeckThreshold, searchUnownedCommanders, skipCubeLookup, cubeThreshold, popularCubeFollowerCount, ownAllLands);
+        log.info("Config: normalDeckThreshold: {}, monthsToLookBack: {}, skipNormalDeckLookup: {}, maxLands: {}, averageDeckThreshold: {}, searchUnownedCommanders: {}, skipCubeLookup: {}, cubeThreshold: {}, popularCubeFollowerCount: {}, minCubeCardCount: {}, ownAllLands: {}",
+                normalDeckThreshold, monthsToLookBack, skipNormalDeckLookup, maxLands, averageDeckThreshold, searchUnownedCommanders, skipCubeLookup, cubeThreshold, popularCubeFollowerCount, minCubeCardCount, ownAllLands);
         log.info("Toggles: normal decks: {}, average decks: {}, cubes: {}",
                 !disableNormalDecks, !disableAverageDecks, !disableCubes);
     }

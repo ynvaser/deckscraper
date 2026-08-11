@@ -69,9 +69,10 @@ public final class AverageDeck implements Cardholder {
         StringBuilder sb = new StringBuilder();
         sb.append("https://edhrec.com/average-decks/");
         sb.append(Utils.cardNameToJsonFileName(commander.name()));
-        if (tribe != null && !"default".equals(tribe)) {
+        if (tribe != null && !"default".equalsIgnoreCase(tribe)) {
             sb.append("/");
-            sb.append("cheap".equalsIgnoreCase(tribe) ? "budget" : tribe);
+            String formattedTribe = "cheap".equalsIgnoreCase(tribe) ? "budget" : Utils.cardNameToJsonFileName(tribe);
+            sb.append(formattedTribe);
         }
         sb.append("\n\n");
         if (commander.isCombined()) {

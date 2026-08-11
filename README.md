@@ -1,7 +1,8 @@
 # ynvaser's Deckscraper
 
 ## What is new?
-* Fixed the tool, both for EDHRec and CubeCobra.
+* Fixed the tool, both for EDHRec and CubeCobra (for real this time).
+* Added config.minCubeCardCount upon request.
 
 ## What does this do?
 * This tool takes your collection of cards, and gives you a list of decks from EDHREC that you can build or are close to building.

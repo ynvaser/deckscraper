@@ -12,6 +12,11 @@ import systems.bdev.deckscraper.persistence.DeckEntity;
 import systems.bdev.deckscraper.persistence.DeckRepository;
 import systems.bdev.deckscraper.util.Utils;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import javax.transaction.Transactional;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
@@ -20,6 +25,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -41,6 +47,9 @@ public class DeckSaverService {
     @Autowired
     private CubeRepository cubeRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Transactional
     public void saveDecksFromDb(Set<Card> commanders, Path outputFolderPath, Set<Card> collection, int percentage, int maxLands, int monthsToLookBack) {
         deckRepository
@@ -59,23 +68,63 @@ public class DeckSaverService {
     }
 
     @Transactional
-    public void saveCubes(Path outputFolderPath, Map<Card, Integer> collection, int cubeThreshold, int monthsToLookBack, int popularCubeFollowerCount) {
+    public void saveCubes(Path outputFolderPath, Map<Card, Integer> collection, int cubeThreshold, int monthsToLookBack, int popularCubeFollowerCount, int minCubeCardCount) {
         ZonedDateTime referenceDateTime = LocalDate.now().atStartOfDay().atZone(ZoneOffset.UTC).minusMonths(monthsToLookBack);
-        cubeRepository.findAllByDateUpdatedAfter(referenceDateTime)
-                .map(CubeEntity::toCube)
-                .filter(cube -> !cube.getCardsAndCounts().isEmpty())
-                .filter(cube -> isAboveThreshold(cube, collection, cubeThreshold))
-                .forEach(cube -> saveCube(outputFolderPath, cube, popularCubeFollowerCount));
+        log.info("Querying cubes from database in paged batches (monthsToLookBack: {}, minCubeCardCount: {})...", monthsToLookBack, minCubeCardCount);
+
+        int pageSize = 1000;
+        int pageNumber = 0;
+        long totalSaved = 0;
+        long totalProcessed = 0;
+
+        Page<CubeEntity> page;
+        do {
+            page = cubeRepository.findAll(PageRequest.of(pageNumber, pageSize));
+            pageNumber++;
+            totalProcessed += page.getNumberOfElements();
+            log.info("Processing cube batch {}/{} ({} cubes loaded so far)...", pageNumber, page.getTotalPages(), totalProcessed);
+
+            for (CubeEntity entity : page.getContent()) {
+                if (entity != null && (entity.getDateUpdated() == null || !entity.getDateUpdated().isBefore(referenceDateTime))) {
+                    Cube cube = entity.toCube();
+                    if (cube != null && cube.getCardsAndCounts() != null && getCubeTotalCardCount(cube) >= minCubeCardCount) {
+                        if (isAboveThreshold(cube, collection, cubeThreshold)) {
+                            saveCube(outputFolderPath, cube, popularCubeFollowerCount);
+                            totalSaved++;
+                        }
+                    }
+                }
+            }
+            entityManager.clear(); // Clear Hibernate first-level cache to prevent OutOfMemoryError
+        } while (page.hasNext());
+
+        log.info("Saved {}/{} cubes matching threshold (>= {}% owned, >= {} cards) to output folder.", totalSaved, totalProcessed, cubeThreshold, minCubeCardCount);
+    }
+
+    private long getCubeTotalCardCount(Cube cube) {
+        if (cube == null || cube.getCardsAndCounts() == null) {
+            return 0;
+        }
+        return cube.getCardsAndCounts().values().stream()
+                .filter(count -> count != null)
+                .mapToLong(Long::longValue)
+                .sum();
     }
 
     private void saveCube(Path outputFolderPath, Cube cube, int popularCubeFollowerCount) {
         String folderName;
-        if (cube.getUsersFollowing().size() >= popularCubeFollowerCount) {
+        int followerCount = cube.getFollowerCount();
+        if (followerCount >= popularCubeFollowerCount) {
             folderName = "_cube" + SEPARATOR + "_popular";
         } else {
             folderName = "_cube";
         }
-        String fileName = outputFolderPath + SEPARATOR + folderName + SEPARATOR + cube.getPercentage() + "_" + Utils.cardNameToFileName(cube.getCubeName()).replaceAll("[^a-zA-Z0-9]", "") + "_" + cube.getId() + ".txt";
+        String rawName = cube.getCubeName() != null ? Utils.cardNameToFileName(cube.getCubeName()).replaceAll("[^a-zA-Z0-9]", "") : "cube";
+        if (rawName.isBlank()) {
+            rawName = "cube";
+        }
+        String safeCubeName = rawName.length() > 50 ? rawName.substring(0, 50) : rawName;
+        String fileName = outputFolderPath + SEPARATOR + folderName + SEPARATOR + cube.getPercentage() + "_" + safeCubeName + "_" + (cube.getId() != null ? cube.getId() : "") + ".txt";
         saveDeck(outputFolderPath, cube, folderName, fileName);
     }
 
@@ -94,15 +143,21 @@ public class DeckSaverService {
     }
 
     private boolean isAboveThreshold(Cube cube, Map<Card, Integer> collection, int cubeThreshold) {
+        if (cube == null || cube.getCardsAndCounts() == null || cube.getCardsAndCounts().isEmpty()) {
+            return false;
+        }
         double cardsOwned = 0;
         double cardsNotOwned = 0;
 
         for (Map.Entry<Card, Long> entry : cube.getCardsAndCounts().entrySet()) {
             Card card = entry.getKey();
             Long neededCount = entry.getValue();
+            if (card == null || neededCount == null) {
+                continue;
+            }
             if (collection.containsKey(card)) {
                 Integer ownedCount = collection.get(card);
-                if (neededCount > ownedCount) {
+                if (ownedCount != null && neededCount > ownedCount) {
                     cardsOwned += ownedCount;
                     cardsNotOwned += neededCount - ownedCount;
                 } else {
@@ -112,7 +167,11 @@ public class DeckSaverService {
                 cardsNotOwned += neededCount;
             }
         }
-        double points = (cardsOwned / (cardsOwned + cardsNotOwned)) * 100;
+        double totalCards = cardsOwned + cardsNotOwned;
+        if (totalCards == 0) {
+            return false;
+        }
+        double points = (cardsOwned / totalCards) * 100;
         cube.setPercentage((int) points);// Dirty (no command/query separation), but simple
         return points >= cubeThreshold;
     }

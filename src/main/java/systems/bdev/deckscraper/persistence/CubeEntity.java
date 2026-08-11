@@ -16,6 +16,8 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import java.util.Map;
+
 @Entity
 @Getter
 @Setter
@@ -32,9 +34,7 @@ public class CubeEntity {
     @Column
     private String cubeName;
     @Column
-    @Convert(converter = DelimitedStringToList.class)
-    @Lob
-    private List<String> usersFollowing;
+    private Integer followerCount;
 
     public Cube toCube() {
         Cube cube = new Cube();
@@ -42,22 +42,26 @@ public class CubeEntity {
         cube.setCards(cards != null ? cards.stream().map(Card::new).collect(Collectors.toList()) : List.of());
         cube.setDateUpdated(dateUpdated);
         cube.setCubeName(cubeName);
-        cube.setUsersFollowing(usersFollowing != null ? usersFollowing : List.of());
+        cube.setFollowerCount(followerCount != null ? followerCount : 0);
         return cube;
     }
 
     public static CubeEntity fromCube(Cube cube) {
+        return fromCube(cube, null);
+    }
+
+    public static CubeEntity fromCube(Cube cube, Map<Integer, String> indexToNameMap) {
         CubeEntity cubeEntity = new CubeEntity();
         cubeEntity.setId(cube.getId());
-        List<Card> cubeCards = cube.getCards();
-        cubeEntity.setCards(cubeCards != null ? cubeCards.stream().map(Card::name).collect(Collectors.toList()) : List.of());
+        List<String> cardNames = cube.getResolvedCardNames(indexToNameMap);
+        cubeEntity.setCards(cardNames);
         cubeEntity.setDateUpdated(cube.getDateUpdated());
         String name = cube.getCubeName();
         if (name != null && name.length() > 255) {
             name = name.substring(0, 255);
         }
         cubeEntity.setCubeName(name);
-        cubeEntity.setUsersFollowing(cube.getUsersFollowing() != null ? cube.getUsersFollowing() : List.of());
+        cubeEntity.setFollowerCount(cube.getFollowerCount());
         return cubeEntity;
     }
 }
